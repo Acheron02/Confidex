@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "../ui/label";
 import { Input } from "../ui/input";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeClosed } from "lucide-react";
 import {
   Dialog,
   DialogTrigger,
@@ -61,7 +61,7 @@ export function AdminLogin({ onSwitchToLogin }: LoginProps) {
             onClick={() => setShowPassword(!showPassword)}
             className="absolute right-0 top-0 h-full px-3"
           >
-            {showPassword ? <Eye size={18} /> : <EyeOff size={18} />}
+            {showPassword ? <Eye size={18} /> : <EyeClosed size={18} />}
           </Button>
         </div>
       </div>
