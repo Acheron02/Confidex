@@ -52,7 +52,7 @@ export function AdminLogin({ onSwitchToLogin }: LoginProps) {
             type={showPassword ? "text" : "password"}
             placeholder="Enter password"
             required
-            className="pr-10" // space for the icon
+            className="pr-5"
           />
           <Button
             type="button"
