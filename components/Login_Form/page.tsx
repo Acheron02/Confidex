@@ -1,7 +1,18 @@
+'use client'
 import { Button } from "@/components/ui/button";
 import { PhoneInput } from "../ui/phone-input";
 import { Label } from "../ui/label";
-import { DialogClose } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogClose
+} from "@/components/ui/dialog";
+import { VerificationForm } from "../Verification_form/page";
+import { useState } from "react";
 
 
 
@@ -11,6 +22,13 @@ interface LoginProps {
 }
 
 export function Login({ onSwitchToRegister, onSwitchToAdmin }: LoginProps) {
+  const [open, setOpen] = useState(false);
+  
+    const handleVerificationSubmit = (code: string) => {
+      console.log("Verification code entered:", code);
+      // TODO: Call your API or complete registration flow here
+      setOpen(false);
+    };
   return (
     <form className="flex flex-col flex-grow" method="POST" action="/api/login">
       <div className="grid gap-1">
@@ -54,13 +72,34 @@ export function Login({ onSwitchToRegister, onSwitchToAdmin }: LoginProps) {
         </p>
       </div>
 
-      <div className="mt-auto flex justify-end gap-2">
+      <div className="flex flex-initial justify-end gap-2 mt-auto">
         <DialogClose asChild>
-          <Button variant="outline" type="button" formNoValidate className="hover:cursor-pointer">
+          <Button type="button" variant="outline" className="hover:cursor-pointer">
             Cancel
           </Button>
         </DialogClose>
-        <Button type="submit" className="hover:cursor-pointer">Send OTP</Button>
+
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger asChild>
+            <Button type="button" className="hover:cursor-pointer">
+              Login
+            </Button>
+          </DialogTrigger>
+
+          <DialogContent>
+            <DialogHeader className="flex justify-center items-center">
+              <DialogTitle>Account Verification</DialogTitle>
+              <DialogDescription>
+                Please enter the OTP sent to your number.
+              </DialogDescription>
+            </DialogHeader>
+
+            <VerificationForm
+              onSubmit={handleVerificationSubmit}
+              onCancel={() => setOpen(false)}
+            />
+          </DialogContent>
+        </Dialog>
       </div>
     </form>
   );

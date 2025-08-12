@@ -133,3 +133,8 @@
 .fade-in {
   animation: fadeIn 1s ease-in-out forwards;
 }
+
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+  display: none;
+}
