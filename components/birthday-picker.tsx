@@ -24,9 +24,11 @@ export function Calendar22() {
             name="date"
             variant="outline"
             id="date"
-            className="justify-between font-normal hover:cursor-pointer mb-5"
+            className={`justify-between font-normal hover:cursor-pointer mb-5 ${
+              date ? "text-white" : "text-gray-400 hover:text-gray-400"
+            } `}
           >
-            {date ? date.toLocaleDateString() : "Select date"}
+            {date ? date.toLocaleDateString() : "Select Date"}
             <ChevronDownIcon />
           </Button>
         </PopoverTrigger>

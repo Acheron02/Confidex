@@ -52,16 +52,16 @@ export function AdminLogin({ onSwitchToLogin }: LoginProps) {
             type={showPassword ? "text" : "password"}
             placeholder="Enter password"
             required
-            className="pr-5"
+            className="pr-10"
           />
           <Button
             type="button"
             variant="ghost"
             size="sm"
             onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-0 top-0 h-full px-3"
+            className="absolute right-0 top-0 h-full"
           >
-            {showPassword ? <Eye size={18} /> : <EyeClosed size={18} />}
+            {showPassword ? <Eye /> : <EyeClosed />}
           </Button>
         </div>
       </div>
