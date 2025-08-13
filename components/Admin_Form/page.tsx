@@ -68,7 +68,7 @@ export function AdminLogin({ onSwitchToLogin }: LoginProps) {
 
       <div className="grid gap-5 mt-3 mb-1">
         <p className="text-sm text-gray-500 text-center ml-0.5">
-          I'm not an Admin.{" "}
+          I'm not an Admin.{""}
           <button
             type="button"
             onClick={onSwitchToLogin}

@@ -79,7 +79,7 @@ export function Register({ onSwitchToLogin, onSwitchToAdmin }: RegisterProps) {
         {/* Switch to login */}
         <div className="grid gap-5 mt-1 mb-1">
           <p className="text-sm text-gray-500 text-center ml-0.5">
-            Already have an account?{" "}
+            Already have an account?{""}
             <button
               type="button"
               onClick={onSwitchToLogin}

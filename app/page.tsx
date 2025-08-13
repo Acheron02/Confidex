@@ -14,7 +14,7 @@ export default function Home() {
         src="/CONFIDEX.png"
         alt="confidex bg"
         layout="fill"
-        objectFit="cover"
+        style={{ objectFit: "cover" }}
         className="fixed inset-0 z-0"
       />
       <div className="z-10 w-full h-full fixed inset-0 overflow-hidden flex items-center justify-center fade-in">

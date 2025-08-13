@@ -42,7 +42,7 @@ export function Login({ onSwitchToRegister, onSwitchToAdmin }: LoginProps) {
       </div>
       <div className="grid gap-5 mt-5 mb-1">
         <p className="text-sm text-gray-500 text-center ml-0.5">
-          Don't have an account?{" "}
+          Don't have an account?{""}
           <button
             type="button"
             onClick={onSwitchToRegister}
