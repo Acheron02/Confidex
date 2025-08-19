@@ -14,8 +14,6 @@ import {
 import { VerificationForm } from "../Verification_form/page";
 import { useState } from "react";
 
-
-
 interface LoginProps {
   onSwitchToRegister: () => void;
   onSwitchToAdmin: () => void; 
@@ -23,19 +21,43 @@ interface LoginProps {
 
 export function Login({ onSwitchToRegister, onSwitchToAdmin }: LoginProps) {
   const [open, setOpen] = useState(false);
-  
-    const handleVerificationSubmit = (code: string) => {
+  const [phoneNumber, setPhoneNumber] = useState("");
+
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const number = phoneNumber;
+
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ number }),
+    });
+
+    const data = await res.json();
+    if (res.ok) {
+      console.log("Server message:", data.message); // ✅ will log "Login successful"
+      console.log("User:", data.user); // optional: log the user details
+      setOpen(true); // open OTP modal
+    } else {
+      console.error("Login error:", data.error);
+      alert(data.error);
+    }
+  };
+
+  const handleVerificationSubmit = (code: string) => {
       console.log("Verification code entered:", code);
       // TODO: Call your API or complete registration flow here
       setOpen(false);
     };
   return (
-    <form className="flex flex-col flex-grow" method="POST" action="/api/login">
+    <form className="flex flex-col flex-grow" onSubmit={handleLogin}>
       <div className="grid gap-1">
-        <Label htmlFor="number">Phone Number</Label>
         <PhoneInput
           defaultCountry="PH"
           international
+          value={phoneNumber}
+          onChange={(value) => setPhoneNumber(value)}
           name="number"
           className="mb-4"
         />
@@ -74,17 +96,19 @@ export function Login({ onSwitchToRegister, onSwitchToAdmin }: LoginProps) {
 
       <div className="flex flex-initial justify-end gap-2 mt-auto">
         <DialogClose asChild>
-          <Button type="button" variant="outline" className="hover:cursor-pointer">
+          <Button
+            type="button"
+            variant="outline"
+            className="hover:cursor-pointer"
+          >
             Cancel
           </Button>
         </DialogClose>
 
         <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button type="button" className="hover:cursor-pointer">
-              Login
-            </Button>
-          </DialogTrigger>
+          <Button type="submit" className="hover:cursor-pointer">
+            Login
+          </Button>
 
           <DialogContent>
             <DialogHeader className="flex justify-center items-center">

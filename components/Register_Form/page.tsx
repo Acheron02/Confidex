@@ -30,6 +30,38 @@ interface RegisterProps {
 
 export function Register({ onSwitchToLogin, onSwitchToAdmin }: RegisterProps) {
   const [open, setOpen] = useState(false);
+  const [form, setForm] = useState({
+    phoneNumber: "",
+    gender: "",
+    dob: "",
+  });
+
+  const [status, setStatus] = useState<string | null>(null);
+
+  const onChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    setForm((s) => ({ ...s, [e.target.name]: e.target.value }));
+  };
+
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setStatus("Submitting...");
+
+    const res = await fetch("/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(form),
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      setStatus(data.error || "Failed");
+      return;
+    }
+
+    setStatus("Registered!");
+    // Optional: redirect to login or dashboard
+    // router.push("/auth/login");
+  };
 
   const handleVerificationSubmit = (code: string) => {
     console.log("Verification code entered:", code);
@@ -39,18 +71,18 @@ export function Register({ onSwitchToLogin, onSwitchToAdmin }: RegisterProps) {
 
   return (
     <>
-      <form
-        className="flex flex-col flex-grow"
-        method="POST"
-        action="/api/register"
-      >
+      <form className="flex flex-col flex-grow" onSubmit={onSubmit}>
         {/* Phone Number */}
         <div className="grid gap-1">
           <Label htmlFor="number">Phone Number</Label>
           <PhoneInput
             defaultCountry="PH"
             international
-            name="number"
+            value={form.phoneNumber}
+            onChange={(value) =>
+              setForm((s) => ({ ...s, phoneNumber: value ?? "" }))
+            }
+            name="phoneNumber"
             className="mb-4"
           />
         </div>
@@ -58,7 +90,10 @@ export function Register({ onSwitchToLogin, onSwitchToAdmin }: RegisterProps) {
         {/* Gender */}
         <div className="grid gap-1">
           <Label htmlFor="gender">Gender</Label>
-          <Select name="gender">
+          <Select
+            value={form.gender}
+            onValueChange={(value) => setForm((s) => ({ ...s, gender: value }))}
+          >
             <SelectTrigger className="w-full hover:cursor-pointer mb-4">
               <SelectValue placeholder="Select Gender" />
             </SelectTrigger>
@@ -73,7 +108,12 @@ export function Register({ onSwitchToLogin, onSwitchToAdmin }: RegisterProps) {
         {/* Date of Birth */}
         <div className="grid gap-1">
           <Label htmlFor="date">Date of Birth</Label>
-          <Calendar22 />
+          <Calendar22
+            value={form.dob}
+            onChange={(date: Date | undefined) =>
+              setForm((s) => ({ ...s, dob: date ? date.toISOString() : "" }))
+            }
+          />
         </div>
 
         {/* Switch to login */}
@@ -113,14 +153,18 @@ export function Register({ onSwitchToLogin, onSwitchToAdmin }: RegisterProps) {
         {/* Action buttons */}
         <div className="flex flex-initial justify-end gap-2 mt-auto">
           <DialogClose asChild>
-            <Button type="button" variant="outline" className="hover:cursor-pointer">
+            <Button
+              type="button"
+              variant="outline"
+              className="hover:cursor-pointer"
+            >
               Cancel
             </Button>
           </DialogClose>
 
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-              <Button type="button" className="hover:cursor-pointer">
+              <Button type="submit" className="hover:cursor-pointer">
                 Sign Up
               </Button>
             </DialogTrigger>

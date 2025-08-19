@@ -1,4 +1,4 @@
-'use client';
+"use client";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "../ui/label";
@@ -22,15 +22,52 @@ interface LoginProps {
 export function AdminLogin({ onSwitchToLogin }: LoginProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleVerificationSubmit = (code: string) => {
     console.log("Verification code entered:", code);
-    // TODO: Call your API or complete registration flow here
+    // later: verify OTP logic
     setOpen(false);
   };
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+
+    const formData = new FormData(e.currentTarget as HTMLFormElement);
+    const email = String(formData.get("email") || "");
+    const password = String(formData.get("password") || "");
+
+    console.log("Submitting:", { email, password });
+
+    try {
+      const res = await fetch("/api/auth/adminLogin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await res.json();
+      console.log("Admin login response:", data);
+
+      if (res.ok) {
+        setOpen(true); // open OTP modal
+      } else {
+        setError(data.error || "Login failed");
+      }
+    } catch (err) {
+      console.error("Login request error:", err);
+      setError("Something went wrong");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
   return (
-    <form className="flex flex-col flex-grow" method="POST" action="/api/login">
+    <form className="flex flex-col flex-grow" onSubmit={handleSubmit}>
       <div className="grid gap-2">
         <Label htmlFor="email">Email</Label>
         <Input
@@ -66,6 +103,10 @@ export function AdminLogin({ onSwitchToLogin }: LoginProps) {
         </div>
       </div>
 
+      {error && (
+        <p className="text-red-500 text-sm mt-2 text-center">{error}</p>
+      )}
+
       <div className="grid gap-5 mt-3 mb-1">
         <p className="text-sm text-gray-500 text-center ml-0.5">
           I'm not an Admin.{""}
@@ -81,17 +122,26 @@ export function AdminLogin({ onSwitchToLogin }: LoginProps) {
 
       <div className="mt-auto flex justify-end gap-2">
         <DialogClose asChild>
-          <Button variant="outline" type="button" formNoValidate className="hover:cursor-pointer">
+          <Button
+            variant="outline"
+            type="button"
+            formNoValidate
+            className="hover:cursor-pointer"
+          >
             Cancel
           </Button>
         </DialogClose>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button type="button" className="hover:cursor-pointer">
-              Login
-            </Button>
-          </DialogTrigger>
 
+        <Button
+          type="submit"
+          className="hover:cursor-pointer"
+          disabled={loading}
+        >
+          {loading ? "Logging in..." : "Login"}
+        </Button>
+
+        {/* OTP Dialog */}
+        <Dialog open={open} onOpenChange={setOpen}>
           <DialogContent>
             <DialogHeader className="flex justify-center items-center">
               <DialogTitle>Account Verification</DialogTitle>
