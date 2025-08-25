@@ -3,19 +3,20 @@ import { createContext, useContext, useState, useEffect } from "react";
 
 interface User {
   _id: string;
-  email?: string; // ✅ Add email for consistency
+  email?: string;
   phoneNumber?: string;
   gender?: string;
   dob?: string;
-  role?: string; // ✅ Add role (optional for normal users)
+  role?: string;
 }
 
 interface Admin extends User {
-  role: "admin"; // ✅ Ensure admin has fixed role
+  role: "admin";
 }
 
 interface AuthContextType {
   user: User | Admin | null;
+  loading: boolean; // <-- NEW
   login: (user: User | Admin) => void;
   logout: () => void;
 }
@@ -24,17 +25,21 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | Admin | null>(null);
+  const [loading, setLoading] = useState(true); // <-- NEW
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
-      const parsedUser = JSON.parse(storedUser);
-      if (parsedUser && parsedUser._id) {
-        setUser(parsedUser); // ✅ valid user
-      } else {
-        setUser(null); // ✅ ignore invalid objects
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        if (parsedUser && parsedUser._id) {
+          setUser(parsedUser);
+        }
+      } catch {
+        console.error("Failed to parse user from localStorage");
       }
     }
+    setLoading(false); // done checking localStorage
   }, []);
 
   const login = (userData: User | Admin) => {
@@ -54,18 +59,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         credentials: "include",
       });
 
-      // Clear client-side data
       setUser(null);
       localStorage.clear();
       sessionStorage.clear();
 
-      // Clear cache
+      // Clear caches
       if ("caches" in window) {
         const cacheNames = await caches.keys();
         await Promise.all(cacheNames.map((name) => caches.delete(name)));
       }
 
-      // Redirect to home
+      // Redirect after state clears
       window.location.href = "/";
     } catch (err) {
       console.error("Logout failed:", err);
@@ -73,7 +77,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

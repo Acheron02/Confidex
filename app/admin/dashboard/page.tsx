@@ -2,29 +2,25 @@
 
 import { useAuth } from "@/components/context/AuthContext";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 
 export default function AdminDashboardPage() {
-  const { user, logout } = useAuth();
+  const { user, loading, logout } = useAuth(); // <-- include loading from context
   const router = useRouter();
-  const [checkingAuth, setCheckingAuth] = useState(true);
 
   useEffect(() => {
-    if (!user) {
-      router.replace("/");
-      return;
+    if (!loading) {
+      if (!user) {
+        router.replace("/"); // Redirect to home if not logged in
+      } else if (user.role !== "admin") {
+        router.replace(`/users/${user._id}`); // Redirect to user dashboard if not admin
+      }
     }
+  }, [user, loading, router]);
 
-    if (user.role !== "admin") {
-      router.replace(`/users/${user._id}`);
-      return;
-    }
-
-    setCheckingAuth(false); // ✅ allow rendering once validation passes
-  }, [user, router]);
-
-  if (checkingAuth) {
+  // Show loading state until auth is resolved
+  if (loading || !user || user.role !== "admin") {
     return (
       <div className="w-full h-full flex items-center justify-center">
         <p className="text-lg text-yellow-400 font-semibold">
