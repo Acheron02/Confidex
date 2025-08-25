@@ -1,130 +1,186 @@
-'use client'
-import { Button } from "@/components/ui/button";
-import { PhoneInput } from "../ui/phone-input";
-import { Label } from "../ui/label";
-import {
-  Dialog,
-  DialogTrigger,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogClose
-} from "@/components/ui/dialog";
-import { VerificationForm } from "../Verification_form/page";
+"use client";
+
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { PhoneInput } from "../ui/phone-input";
+import { DialogClose } from "@/components/ui/dialog";
+import { VerificationForm } from "../Verification_form/page";
+import { redirect } from "next/navigation";
+import { useAuth } from "@/components/context/AuthContext";
 
 interface LoginProps {
   onSwitchToRegister: () => void;
-  onSwitchToAdmin: () => void; 
+  onSwitchToAdmin: () => void;
+  onClose: () => void;
 }
 
-export function Login({ onSwitchToRegister, onSwitchToAdmin }: LoginProps) {
+export function Login({
+  onSwitchToRegister,
+  onSwitchToAdmin,
+  onClose,
+}: LoginProps) {
+  const { login } = useAuth();
+
   const [open, setOpen] = useState(false);
-  const [phoneNumber, setPhoneNumber] = useState("");
+  const [form, setForm] = useState({ phoneNumber: "" });
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [otp, setOtp] = useState("");
+  const [tempPhone, setTempPhone] = useState<string | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
 
-  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
+  // 🔹 validation
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {};
+    if (!form.phoneNumber.trim()) {
+      newErrors.phoneNumber = "Phone number is required";
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const clearError = (field: keyof typeof form) => {
+    setErrors((prev) => ({ ...prev, [field]: "" }));
+  };
+
+  const handleResendOTP = () => {
+    const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    setOtp(newOtp);
+    console.log("Resent OTP:", newOtp);
+  };
+
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const number = phoneNumber;
+    if (!validateForm()) return;
 
-    const res = await fetch("/api/auth/login", {
+    // Check if phone is registered
+    const res = await fetch("/api/checkPhone", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ number }),
+      body: JSON.stringify({ phoneNumber: form.phoneNumber }),
     });
 
     const data = await res.json();
-    if (res.ok) {
-      console.log("Server message:", data.message); // ✅ will log "Login successful"
-      console.log("User:", data.user); // optional: log the user details
-      setOpen(true); // open OTP modal
+    if (!res.ok) {
+      setErrors({ phoneNumber: data.error || "Phone number not registered" });
+      return;
+    }
+
+    // ✅ Phone exists, generate OTP
+    const generated = Math.floor(100000 + Math.random() * 900000).toString();
+    setOtp(generated);
+    setTempPhone(form.phoneNumber);
+    console.log("Generated OTP (Login):", generated);
+    setOpen(true);
+  };
+
+
+  const handleVerificationSubmit = async (code: string) => {
+    if (code === otp && tempPhone) {
+      // ✅ Call login API AFTER OTP verification
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phoneNumber: tempPhone }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setStatus(data.error || "Login failed");
+        return;
+      }
+
+      setStatus("Login successful!");
+      setOpen(false);
+      login(data.user);
+      onClose();
+      redirect(`/users/${data.user._id}`);
     } else {
-      console.error("Login error:", data.error);
-      alert(data.error);
+      setStatus("Incorrect OTP, try again.");
     }
   };
 
-  const handleVerificationSubmit = (code: string) => {
-      console.log("Verification code entered:", code);
-      // TODO: Call your API or complete registration flow here
-      setOpen(false);
-    };
   return (
-    <form className="flex flex-col flex-grow" onSubmit={handleLogin}>
-      <div className="grid gap-1">
-        <PhoneInput
-          defaultCountry="PH"
-          international
-          value={phoneNumber}
-          onChange={(value) => setPhoneNumber(value)}
-          name="number"
-          className="mb-4"
-        />
-      </div>
-      <div className="grid gap-5 mt-5 mb-1">
-        <p className="text-sm text-gray-500 text-center ml-0.5">
-          Don't have an account?{""}
-          <button
-            type="button"
-            onClick={onSwitchToRegister}
-            className="text-sm text-blue-600 ml-1 hover:underline hover:decoration-2 hover:cursor-pointer"
-          >
-            Register
-          </button>
-        </p>
-      </div>
+    <>
+      <form className="grid grid-cols-1 gap-5 flex-grow" onSubmit={onSubmit}>
+        {/* Phone Number */}
+        <div className="grid gap-1">
+          <Label htmlFor="number">Phone Number</Label>
+          <PhoneInput
+            defaultCountry="PH"
+            international
+            value={form.phoneNumber}
+            onChange={(value) => {
+              setForm((s) => ({ ...s, phoneNumber: value ?? "" }));
+              clearError("phoneNumber");
+            }}
+            name="phoneNumber"
+            className="mb-1"
+          />
+          {errors.phoneNumber && (
+            <p className="text-sm text-red-500">{errors.phoneNumber}</p>
+          )}
+        </div>
 
-      <div className="flex items-center">
-        <hr className="flex-grow border-gray-300" />
-        <span className="mx-4 text-gray-500 text-sm select-none">or</span>
-        <hr className="flex-grow border-gray-300" />
-      </div>
+        {/* Switch to Register / Admin */}
+        <div className="grid">
+          <p className="text-sm text-gray-500 text-center ml-0.5">
+            Don’t have an account?{" "}
+            <button
+              type="button"
+              onClick={onSwitchToRegister}
+              className="text-sm text-blue-600 ml-1 hover:underline hover:decoration-2 hover:cursor-pointer"
+            >
+              Register
+            </button>
+          </p>
 
-      <div className="grid gap-5 mt-1 mb-1">
-        <p className="text-sm text-gray-500 text-center ml-0.5">
-          Are you an{" "}
-          <button
-            type="button"
-            onClick={onSwitchToAdmin} // use the new prop here
-            className="text-sm text-blue-600 ml-1 hover:underline hover:decoration-2 hover:cursor-pointer"
-          >
-            Admin?
-          </button>
-        </p>
-      </div>
+          <div className="flex items-center">
+            <hr className="flex-grow border-gray-300" />
+            <span className="mx-4 text-gray-500 text-sm select-none">or</span>
+            <hr className="flex-grow border-gray-300" />
+          </div>
 
-      <div className="flex flex-initial justify-end gap-2 mt-auto">
-        <DialogClose asChild>
-          <Button
-            type="button"
-            variant="outline"
-            className="hover:cursor-pointer"
-          >
-            Cancel
-          </Button>
-        </DialogClose>
+          <div className="grid">
+            <p className="text-sm text-gray-500 text-center ml-0.5">
+              Are you an{" "}
+              <button
+                type="button"
+                onClick={onSwitchToAdmin}
+                className="text-sm text-blue-600 ml-1 hover:underline hover:decoration-2 hover:cursor-pointer"
+              >
+                Admin?
+              </button>
+            </p>
+          </div>
+        </div>
 
-        <Dialog open={open} onOpenChange={setOpen}>
+        {/* Action buttons */}
+        <div className="flex justify-end gap-2 mt-auto">
+          <DialogClose asChild>
+            <Button
+              type="button"
+              variant="outline"
+              className="hover:cursor-pointer"
+            >
+              Cancel
+            </Button>
+          </DialogClose>
+
           <Button type="submit" className="hover:cursor-pointer">
             Login
           </Button>
+        </div>
+      </form>
 
-          <DialogContent>
-            <DialogHeader className="flex justify-center items-center">
-              <DialogTitle>Account Verification</DialogTitle>
-              <DialogDescription>
-                Please enter the OTP sent to your number.
-              </DialogDescription>
-            </DialogHeader>
-
-            <VerificationForm
-              onSubmit={handleVerificationSubmit}
-              onCancel={() => setOpen(false)}
-            />
-          </DialogContent>
-        </Dialog>
-      </div>
-    </form>
+      {/* OTP Dialog */}
+      <VerificationForm
+        open={open}
+        onOpenChange={setOpen}
+        onSubmit={handleVerificationSubmit}
+        onCancel={() => setOpen(false)}
+        onResend={handleResendOTP}
+        status={status}
+      />
+    </>
   );
 }

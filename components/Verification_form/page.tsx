@@ -4,24 +4,33 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { InputOTPPattern } from "../inputOTP";
 import { Label } from "@/components/ui/label";
-import { DialogClose } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogClose,
+} from "@/components/ui/dialog";
 
 interface VerificationFormProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   onSubmit: (code: string) => void;
   onCancel?: () => void;
-  title?: string;
-  description?: string;
-  defaultCode?: string;
+  status?: string | null;
+  onResend?: () => void;
 }
 
 export function VerificationForm({
+  open,
+  onOpenChange,
   onSubmit,
   onCancel,
-  title = "Verification",
-  description = "Please verify your details before proceeding.",
-  defaultCode = "",
+  status,
+  onResend
 }: VerificationFormProps) {
-  const [code, setCode] = useState(defaultCode);
+  const [code, setCode] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,51 +38,63 @@ export function VerificationForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-10">
-      <div className="grid justify-center items-center">
-        <Label
-          htmlFor="verificationCode"
-          className="items-center justify-center my-3"
-        >
-          Verification Code
-        </Label>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader className="flex justify-center items-center">
+          <DialogTitle>Account Verification</DialogTitle>
+          <DialogDescription>
+            Please enter the OTP sent to your number.
+          </DialogDescription>
+        </DialogHeader>
 
-        {/* Bind code state to InputOTPPattern */}
-        <InputOTPPattern
-          value={code}
-          onChange={(val: string) => setCode(val)}
-        />
-      </div>
-
-      <div>
-        <p className="text-sm text-gray-500 text-center ml-0.5">
-          Didn't receive a Code?{" "}
-          <button
-            type="button"
-            className="text-sm text-blue-600 ml-1 hover:underline hover:decoration-2 hover:cursor-pointer"
-          >
-            Resend
-          </button>
-        </p>
-      </div>
-
-      <div className="flex justify-center gap-2">
-        {onCancel && (
-          <DialogClose asChild>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onCancel}
-              className="hover:cursor-pointer"
+        <form onSubmit={handleSubmit} className="space-y-8">
+          {/* OTP Input */}
+          <div className="grid justify-center items-center">
+            <Label
+              htmlFor="verificationCode"
+              className="items-center justify-center my-3"
             >
-              Cancel
+              Verification Code
+            </Label>
+            <InputOTPPattern
+              value={code}
+              onChange={(val: string) => setCode(val)}
+            />
+            
+            {status && (
+              <p className="text-sm text-red-500 mt-2 text-center">{status}</p>
+            )}
+          </div>
+
+          {/* Resend */}
+          <p className="text-sm text-gray-500 text-center">
+            Didn’t receive a code?{" "}
+            <button
+              type="button"
+              className="text-sm text-blue-600 ml-1 hover:underline hover:cursor-pointer"
+              onClick={onResend}
+            >
+              Resend
+            </button>
+          </p>
+
+          <div className="flex justify-center gap-2">
+            {onCancel && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onCancel}
+                className="hover:cursor-pointer"
+              >
+                Cancel
+              </Button>
+            )}
+            <Button type="submit" className="hover:cursor-pointer">
+              Verify
             </Button>
-          </DialogClose>
-        )}
-        <Button type="submit" className="hover:cursor-pointer">
-          Verify
-        </Button>
-      </div>
-    </form>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

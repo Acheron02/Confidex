@@ -1,35 +1,39 @@
-import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import User from "@/models/User";
+import { NextResponse } from "next/server";
+import cookie from "cookie";
+import jwt from "jsonwebtoken";
+
+const JWT_SECRET = process.env.JWT_SECRET as string;
 
 export async function POST(req: Request) {
   try {
     await dbConnect();
     const body = await req.json();
 
-    const phone = String(body.number || "").trim();
+    const phone = String(body.phoneNumber || "").trim();
 
-    if (!phone) {
-      return NextResponse.json(
-        { error: "Phone number is required" },
-        { status: 400 }
-      );
-    }
-
-    const user = await User.findOne({ phoneNumber: phone }).lean() as {
+    const user = (await User.findOne({ phoneNumber: phone }).lean()) as {
       _id: string;
       phoneNumber: string;
       gender?: string;
       dob?: string;
       createdAt?: string;
-      [key: string]: any;
     } | null;
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    return NextResponse.json(
+    // ✅ generate JWT
+    const token = jwt.sign(
+      { id: user._id.toString(), phone: user.phoneNumber },
+      JWT_SECRET,
+      { expiresIn: "5m" }
+    );
+
+    // ✅ build response first
+    const res = NextResponse.json(
       {
         message: "Login successful",
         user: {
@@ -42,6 +46,20 @@ export async function POST(req: Request) {
       },
       { status: 200 }
     );
+
+    // ✅ attach cookie to response
+    res.headers.set(
+      "Set-Cookie",
+      cookie.serialize("session", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: 5 * 60,
+        path: "/",
+      })
+    );
+
+    return res;
   } catch (err: any) {
     console.error("Login error:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });

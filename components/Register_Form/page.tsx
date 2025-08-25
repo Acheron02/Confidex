@@ -12,23 +12,21 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Calendar22 } from "../birthday-picker";
-import {
-  Dialog,
-  DialogTrigger,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogClose
-} from "@/components/ui/dialog";
+import { DialogClose } from "@/components/ui/dialog";
 import { VerificationForm } from "../Verification_form/page";
+import { redirect } from "next/navigation";
+import { useAuth } from "@/components/context/AuthContext";
+import { useRouter } from "next/navigation";
 
 interface RegisterProps {
   onSwitchToLogin: () => void;
   onSwitchToAdmin: () => void;
+  onClose: () => void; 
 }
 
-export function Register({ onSwitchToLogin, onSwitchToAdmin }: RegisterProps) {
+export function Register({ onSwitchToLogin, onSwitchToAdmin, onClose }: RegisterProps) {
+  const { login } = useAuth();
+
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
     phoneNumber: "",
@@ -37,41 +35,104 @@ export function Register({ onSwitchToLogin, onSwitchToAdmin }: RegisterProps) {
   });
 
   const [status, setStatus] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [otp, setOtp] = useState(""); // ✅ store OTP generated
+  const [tempForm, setTempForm] = useState<typeof form | null>(null); // hold form until verified
 
-  const onChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setForm((s) => ({ ...s, [e.target.name]: e.target.value }));
+  const handleResendOTP = () => {
+    const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    setOtp(newOtp); // 🔄 replace the old OTP
+    console.log("Resent OTP:", newOtp);
+  };
+
+  // 🔹 validation helper
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {};
+    if (!form.phoneNumber.trim()) {
+      newErrors.phoneNumber = "Phone number is required";
+    }
+    if (!form.gender.trim()) {
+      newErrors.gender = "Gender is required";
+    }
+    if (!form.dob.trim()) {
+      newErrors.dob = "Date of birth is required";
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  // 🔹 clear errors as user types/selects
+  const clearError = (field: keyof typeof form) => {
+    setErrors((prev) => ({ ...prev, [field]: "" }));
   };
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setStatus("Submitting...");
 
-    const res = await fetch("/api/auth/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
-
-    const data = await res.json();
-    if (!res.ok) {
-      setStatus(data.error || "Failed");
+    if (!validateForm()) {
       return;
     }
 
-    setStatus("Registered!");
-    // Optional: redirect to login or dashboard
-    // router.push("/auth/login");
+    const res = await fetch("/api/checkPhone", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phoneNumber: form.phoneNumber }),
+    });
+
+    const data = await res.json();
+    if (res.ok) {
+      setErrors({ phoneNumber: "This phone number is already registered." });
+      setStatus("This phone number is already registered.");
+      return;
+    }
+
+    const generated = Math.floor(100000 + Math.random() * 900000).toString();
+    setOtp(generated);
+    setTempForm(form);
+    console.log("Generated OTP:", generated);
+    setOpen(true);
+
   };
 
-  const handleVerificationSubmit = (code: string) => {
-    console.log("Verification code entered:", code);
-    // TODO: Call your API or complete registration flow here
-    setOpen(false);
+  const router = useRouter();
+
+  const handleVerificationSubmit = async (code: string) => {
+    if (code === otp && tempForm) {
+      console.log("✅ OTP Verified!");
+
+      setStatus("Submitting...");
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(tempForm),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setStatus(data.error || "Failed");
+        return;
+      }
+
+      setStatus("Registered!");
+      setOpen(false);
+
+      // ✅ store the correct user object
+      login(data.user);
+
+      onClose();
+
+      // ✅ redirect with real id
+      router.push(`/users/${data.user._id}`);
+    } else {
+      console.log("❌ Incorrect OTP");
+      setStatus("Incorrect OTP, try again.");
+    }
   };
+
 
   return (
     <>
-      <form className="flex flex-col flex-grow" onSubmit={onSubmit}>
+      <form className="grid grid-cols-1 gap-5 flex-grow" onSubmit={onSubmit}>
         {/* Phone Number */}
         <div className="grid gap-1">
           <Label htmlFor="number">Phone Number</Label>
@@ -79,12 +140,16 @@ export function Register({ onSwitchToLogin, onSwitchToAdmin }: RegisterProps) {
             defaultCountry="PH"
             international
             value={form.phoneNumber}
-            onChange={(value) =>
-              setForm((s) => ({ ...s, phoneNumber: value ?? "" }))
-            }
+            onChange={(value) => {
+              setForm((s) => ({ ...s, phoneNumber: value ?? "" }));
+              clearError("phoneNumber");
+            }}
             name="phoneNumber"
-            className="mb-4"
+            className="mb-1"
           />
+          {errors.phoneNumber && (
+            <p className="text-sm text-red-500">{errors.phoneNumber}</p>
+          )}
         </div>
 
         {/* Gender */}
@@ -92,9 +157,12 @@ export function Register({ onSwitchToLogin, onSwitchToAdmin }: RegisterProps) {
           <Label htmlFor="gender">Gender</Label>
           <Select
             value={form.gender}
-            onValueChange={(value) => setForm((s) => ({ ...s, gender: value }))}
+            onValueChange={(value) => {
+              setForm((s) => ({ ...s, gender: value }));
+              clearError("gender");
+            }}
           >
-            <SelectTrigger className="w-full hover:cursor-pointer mb-4">
+            <SelectTrigger className="w-full hover:cursor-pointer">
               <SelectValue placeholder="Select Gender" />
             </SelectTrigger>
             <SelectContent>
@@ -103,6 +171,9 @@ export function Register({ onSwitchToLogin, onSwitchToAdmin }: RegisterProps) {
               <SelectItem value="other">Other</SelectItem>
             </SelectContent>
           </Select>
+          {errors.gender && (
+            <p className="text-sm text-red-500">{errors.gender}</p>
+          )}
         </div>
 
         {/* Date of Birth */}
@@ -110,16 +181,18 @@ export function Register({ onSwitchToLogin, onSwitchToAdmin }: RegisterProps) {
           <Label htmlFor="date">Date of Birth</Label>
           <Calendar22
             value={form.dob}
-            onChange={(date: Date | undefined) =>
-              setForm((s) => ({ ...s, dob: date ? date.toISOString() : "" }))
-            }
+            onChange={(date: Date | undefined) => {
+              setForm((s) => ({ ...s, dob: date ? date.toISOString() : "" }));
+              clearError("dob");
+            }}
           />
+          {errors.dob && <p className="text-sm text-red-500">{errors.dob}</p>}
         </div>
 
-        {/* Switch to login */}
-        <div className="grid gap-5 mt-1 mb-1">
+        {/* Switch to login / admin */}
+        <div className="grid">
           <p className="text-sm text-gray-500 text-center ml-0.5">
-            Already have an account?{""}
+            Already have an account?{" "}
             <button
               type="button"
               onClick={onSwitchToLogin}
@@ -128,30 +201,29 @@ export function Register({ onSwitchToLogin, onSwitchToAdmin }: RegisterProps) {
               Login
             </button>
           </p>
-        </div>
 
-        {/* Admin switch */}
-        <div className="flex items-center">
-          <hr className="flex-grow border-gray-300" />
-          <span className="mx-4 text-gray-500 text-sm select-none">or</span>
-          <hr className="flex-grow border-gray-300" />
-        </div>
+          <div className="flex items-center">
+            <hr className="flex-grow border-gray-300" />
+            <span className="mx-4 text-gray-500 text-sm select-none">or</span>
+            <hr className="flex-grow border-gray-300" />
+          </div>
 
-        <div className="grid gap-5 mt-1 mb-1">
-          <p className="text-sm text-gray-500 text-center ml-0.5">
-            Are you an{" "}
-            <button
-              type="button"
-              onClick={onSwitchToAdmin}
-              className="text-sm text-blue-600 ml-1 hover:underline hover:decoration-2 hover:cursor-pointer"
-            >
-              Admin?
-            </button>
-          </p>
+          <div className="grid">
+            <p className="text-sm text-gray-500 text-center ml-0.5">
+              Are you an{" "}
+              <button
+                type="button"
+                onClick={onSwitchToAdmin}
+                className="text-sm text-blue-600 ml-1 hover:underline hover:decoration-2 hover:cursor-pointer"
+              >
+                Admin?
+              </button>
+            </p>
+          </div>
         </div>
 
         {/* Action buttons */}
-        <div className="flex flex-initial justify-end gap-2 mt-auto">
+        <div className="flex justify-end gap-2 mt-auto">
           <DialogClose asChild>
             <Button
               type="button"
@@ -162,29 +234,21 @@ export function Register({ onSwitchToLogin, onSwitchToAdmin }: RegisterProps) {
             </Button>
           </DialogClose>
 
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button type="submit" className="hover:cursor-pointer">
-                Sign Up
-              </Button>
-            </DialogTrigger>
-
-            <DialogContent>
-              <DialogHeader className="flex justify-center items-center">
-                <DialogTitle>Account Verification</DialogTitle>
-                <DialogDescription>
-                  Please enter the OTP sent to your number.
-                </DialogDescription>
-              </DialogHeader>
-
-              <VerificationForm
-                onSubmit={handleVerificationSubmit}
-                onCancel={() => setOpen(false)}
-              />
-            </DialogContent>
-          </Dialog>
+          <Button type="submit" className="hover:cursor-pointer">
+            Sign Up
+          </Button>
         </div>
       </form>
+
+      {/* OTP Dialog */}
+      <VerificationForm
+        open={open}
+        onOpenChange={setOpen}
+        onSubmit={handleVerificationSubmit}
+        onCancel={() => setOpen(false)}
+        onResend={handleResendOTP}
+        status={status}
+      />
     </>
   );
 }

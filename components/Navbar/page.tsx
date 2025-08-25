@@ -3,8 +3,10 @@ import Link from "next/link";
 import { Poppins } from "next/font/google";
 import { ModeToggle } from "@/components/mode-toggle";
 import { motion } from "framer-motion";
-import { AuthDialog } from "../authDialog"; // import the new component
+import { AuthDialog } from "../authDialog";
 import { useState } from "react";
+import { useAuth } from "@/components/context/AuthContext";
+import { Loader2 } from "lucide-react";
 
 const poppins = Poppins({
   weight: ["400", "700"],
@@ -14,6 +16,7 @@ const poppins = Poppins({
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
+  const { user } = useAuth();
 
   return (
     <motion.div
@@ -23,14 +26,14 @@ export default function Navbar() {
       className={`${poppins.variable} w-full max-h-[10%] fixed overflow-hidden 
                   grid grid-cols-3 text-[#0D3B66] antialiased 
                   text-center text-lg font-bold z-50 top-0 left-0 right-0 
-                  items-center  dark:text-[#FAF0CA] inset-0`}
+                  items-center dark:text-[#FAF0CA] inset-0`}
     >
       {/* Logo */}
       <div className="flex items-center justify-center">
         <h1 className="text-xl font-bold">Logo</h1>
       </div>
 
-      {/* Navigation */}
+      {/* Navigation Links */}
       <div className="flex items-center justify-center space-x-6 text-[#0D3B66] dark:text-[#FAF0CA]">
         <Link
           href="/"
@@ -52,9 +55,10 @@ export default function Navbar() {
         </Link>
       </div>
 
-      {/* Button + Mode Toggle */}
+      {/* Right Section */}
       <div className="flex items-center justify-center gap-3">
-        {!open && (
+        {!user ? (
+          // Not logged in → show Sign Up button
           <button
             onClick={() => setOpen(true)}
             className="bg-[#0D3B66] text-[#F4D35E] px-4 py-2 rounded-[15px] hover:cursor-pointer
@@ -62,11 +66,34 @@ export default function Navbar() {
           >
             Sign Up
           </button>
+        ) : user.role === "admin" ? (
+          // Admin logged in → show Admin Dashboard button
+          <Link
+            href="/admin/dashboard"
+            className="bg-[#0D3B66] text-[#F4D35E] px-4 py-2 rounded-[15px] hover:cursor-pointer
+          dark:bg-[#F95738] dark:text-[#FAF0CA]"
+          >
+            Admin
+          </Link>
+        ) : user._id ? (
+          // Normal user logged in → show Profile button
+          <Link
+            href={`/users/${user._id}`}
+            className="bg-[#0D3B66] text-[#F4D35E] px-4 py-2 rounded-[15px] hover:cursor-pointer
+          dark:bg-[#F95738] dark:text-[#FAF0CA]"
+          >
+            Profile
+          </Link>
+        ) : (
+          // While user data is still loading
+          <span className="flex items-center gap-2 px-4 py-2 text-gray-500">
+            <Loader2 className="h-4 w-4 animate-spin" /> Loading...
+          </span>
         )}
         <ModeToggle />
       </div>
 
-      {/* Auth Dialog (Register or Login based on state) */}
+      {/* Auth Modal */}
       <AuthDialog open={open} onOpenChange={setOpen} />
     </motion.div>
   );

@@ -27,29 +27,26 @@ type PhoneInputProps = Omit<
 > &
   Omit<RPNInput.Props<typeof RPNInput.default>, "onChange"> & {
     onChange?: (value: RPNInput.Value) => void;
+    onCountryChange?: (country: RPNInput.Country, callingCode: string) => void; // ✅ added
   };
 
 const PhoneInput: React.ForwardRefExoticComponent<PhoneInputProps> =
   React.forwardRef<React.ElementRef<typeof RPNInput.default>, PhoneInputProps>(
-    ({ className, onChange, value, ...props }, ref) => {
+    ({ className, onChange, onCountryChange, value, ...props }, ref) => {
       return (
         <RPNInput.default
           ref={ref}
           className={cn("flex", className)}
           flagComponent={FlagComponent}
-          countrySelectComponent={CountrySelect}
+          countrySelectComponent={(countrySelectProps) => (
+            <CountrySelect
+              {...countrySelectProps}
+              onCountryChange={onCountryChange} // ✅ pass handler down
+            />
+          )}
           inputComponent={InputComponent}
           smartCaret={false}
           value={value || undefined}
-          /**
-           * Handles the onChange event.
-           *
-           * react-phone-number-input might trigger the onChange event as undefined
-           * when a valid phone number is not entered. To prevent this,
-           * the value is coerced to an empty string.
-           *
-           * @param {E164Number | undefined} value - The entered value
-           */
           onChange={(value) => onChange?.(value || ("" as RPNInput.Value))}
           {...props}
         />
@@ -77,6 +74,7 @@ type CountrySelectProps = {
   value: RPNInput.Country;
   options: CountryEntry[];
   onChange: (country: RPNInput.Country) => void;
+  onCountryChange?: (country: RPNInput.Country, callingCode: string) => void; // ✅ added
 };
 
 const CountrySelect = ({
@@ -84,6 +82,7 @@ const CountrySelect = ({
   value: selectedCountry,
   options: countryList,
   onChange,
+  onCountryChange,
 }: CountrySelectProps) => {
   const scrollAreaRef = React.useRef<HTMLDivElement>(null);
   const [searchValue, setSearchValue] = React.useState("");
@@ -147,7 +146,12 @@ const CountrySelect = ({
                       country={value}
                       countryName={label}
                       selectedCountry={selectedCountry}
-                      onChange={onChange}
+                      onChange={(country) => {
+                        onChange(country);
+                        const callingCode =
+                          RPNInput.getCountryCallingCode(country);
+                        onCountryChange?.(country, callingCode); // ✅ trigger with code
+                      }}
                       onSelectComplete={() => setIsOpen(false)}
                     />
                   ) : null

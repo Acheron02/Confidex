@@ -29,8 +29,8 @@ export function Calendar22({ value, onChange }: Calendar22Props) {
             name="date"
             variant="outline"
             id="date"
-            className={`justify-between font-normal hover:cursor-pointer mb-5 ${
-              selectedDate ? "text-white" : "text-gray-400 hover:text-gray-400"
+            className={`justify-between font-normal hover:cursor-pointer ${
+              selectedDate ? "dark:text-white" : "text-gray-400 hover:text-gray-400"
             } `}
           >
             {selectedDate ? selectedDate.toLocaleDateString() : "Select Date"}

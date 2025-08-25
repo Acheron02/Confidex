@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Navbar from "../components/Navbar/page";
 import "./globals.css";
 import { ThemeProvider } from "@/components/themes-provider";
+import { Footer } from "@/components/Footer/page";
+import { AuthProvider } from "@/components/context/AuthContext";
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -15,15 +17,19 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`antialiased`}>
+      <body className="antialiased">
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange
         >
-          {children}
-          <Navbar />
+          {/* AuthProvider wraps the entire app */}
+          <AuthProvider>
+            <Navbar />
+            {children}
+            <Footer />
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

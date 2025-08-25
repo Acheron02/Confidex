@@ -2,26 +2,12 @@
 
 import Image from "next/image";
 import localFont from "next/font/local";
-import { Footer } from "@/components/Footer/page";
-import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import { Dialog } from "@/components/ui/dialog";
-import { Login } from "@/components/Login_Form/page";
 
 const horizon = localFont({
   src: "../public/fonts/Horizon/gc-horizon-1.otf",
 });
 
 export default function Home() {
-  const searchParams = useSearchParams();
-  const [showLogin, setShowLogin] = useState(false);
-
-  useEffect(() => {
-    const loginRequired = searchParams.get("loginRequired");
-    if (loginRequired === "true") {
-      setShowLogin(true);
-    }
-  }, [searchParams]);
 
   return (
     <div className="fixed inset-0 overflow-hidden">
@@ -42,15 +28,7 @@ export default function Home() {
           SCREENING
         </h1>
 
-        <Footer />
       </div>
-
-      {/* Login Dialog */}
-      {showLogin && (
-        <Dialog open={showLogin} onOpenChange={setShowLogin}>
-          <Login onSwitchToRegister={() => {}} onSwitchToAdmin={() => {}} />
-        </Dialog>
-      )}
     </div>
   );
 }
