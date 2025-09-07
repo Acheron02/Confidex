@@ -4,29 +4,25 @@ import { useAuth } from "@/components/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import CheckAuth from "@/components/checkAuth";
 
 export default function AdminDashboardPage() {
-  const { user, loading, logout } = useAuth(); // <-- include loading from context
+  const { user, loading, logout } = useAuth(); 
   const router = useRouter();
 
   useEffect(() => {
     if (!loading) {
       if (!user) {
-        router.replace("/"); // Redirect to home if not logged in
+        router.replace("/"); 
       } else if (user.role !== "admin") {
-        router.replace(`/users/${user._id}`); // Redirect to user dashboard if not admin
+        router.replace(`/users/${user._id}`);
       }
     }
   }, [user, loading, router]);
 
-  // Show loading state until auth is resolved
   if (loading || !user || user.role !== "admin") {
     return (
-      <div className="w-full h-full flex items-center justify-center">
-        <p className="text-lg text-yellow-400 font-semibold">
-          Checking authentication...
-        </p>
-      </div>
+      <CheckAuth />
     );
   }
 

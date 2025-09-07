@@ -38,6 +38,7 @@ export async function POST(req: Request) {
         message: "Login successful",
         user: {
           _id: user._id,
+          username: (user as any).username,
           phoneNumber: user.phoneNumber,
           gender: user.gender,
           dob: user.dob,

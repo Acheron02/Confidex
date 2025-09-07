@@ -3,6 +3,7 @@ import dbConnect from "@/lib/dbConnect";
 import User from "@/models/User";
 import jwt from "jsonwebtoken";
 import cookie from "cookie";
+import { generateUniqueUsernameWithPhone } from "@/app/utils/generateUsername";
 
 const JWT_SECRET = process.env.JWT_SECRET as string;
 
@@ -11,7 +12,6 @@ export async function POST(req: Request) {
     await dbConnect();
     const body = await req.json();
 
-    // Basic validation
     const phone = String(body.phoneNumber || "").trim();
     const gender = String(body.gender || "")
       .trim()
@@ -33,31 +33,40 @@ export async function POST(req: Request) {
       );
     }
 
-    // Check if exists
-    const exists = await User.findOne({ phoneNumber: phone }).lean();
-    if (exists) {
+    // Check if user already exists
+    let user = await User.findOne({ phoneNumber: phone });
+    let username = "";
+
+    if (user) {
+      // Use existing username
+      username = user.username || "";
       return NextResponse.json(
-        { error: "Phone number already registered" },
+        { error: "Phone number already registered", username },
         { status: 409 }
       );
+    } else {
+      // Generate a new unique username
+      username = await generateUniqueUsernameWithPhone(phone);
+
+      // Create new user
+      user = await User.create({
+        phoneNumber: phone,
+        gender,
+        dob,
+        username,
+      });
     }
 
-    // Create new user
-    const user = await User.create({
-      phoneNumber: phone,
-      gender: gender,
-      dob: dob,
-    });
-
-    // ✅ Generate JWT token
+    // Generate JWT token
     const token = jwt.sign(
       { id: user._id.toString(), phone: user.phoneNumber },
       JWT_SECRET,
-      { expiresIn: "5mins" }
+      {
+        expiresIn: "5mins",
+      }
     );
 
-    // ✅ Build response
-    // ✅ Build response
+    // Build response and attach cookie
     const response = NextResponse.json(
       {
         user: {
@@ -65,6 +74,7 @@ export async function POST(req: Request) {
           phoneNumber: user.phoneNumber,
           gender: user.gender,
           dob: user.dob,
+          username: user.username, // return username to frontend
           createdAt: user.createdAt,
         },
         token,
@@ -72,7 +82,6 @@ export async function POST(req: Request) {
       { status: 201 }
     );
 
-    // ✅ Attach cookie
     response.headers.append(
       "Set-Cookie",
       cookie.serialize("session", token, {

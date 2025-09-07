@@ -1,9 +1,11 @@
+
 import type { Metadata } from "next";
 import Navbar from "../components/Navbar/page";
 import "./globals.css";
 import { ThemeProvider } from "@/components/themes-provider";
 import { Footer } from "@/components/Footer/page";
-import { AuthProvider } from "@/components/context/AuthContext";
+import { AuthProvider, useAuth } from "@/components/context/AuthContext";
+import { AuthProviderWrapper } from "@/components/context/authProviderWrapper";
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -15,23 +17,47 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+
+
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="antialiased">
+      <body className="antialiased flex flex-col min-h-screen">
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange
         >
-          {/* AuthProvider wraps the entire app */}
+          {/* Wrap in AuthProvider */}
           <AuthProvider>
-            <Navbar />
-            {children}
-            <Footer />
+            {/* Key changes force remount */}
+            <AuthProviderWrapper>
+              <Navbar />
+              <main className="flex-1">{children}</main>
+              <Footer />
+            </AuthProviderWrapper>
           </AuthProvider>
         </ThemeProvider>
       </body>
     </html>
   );
+}
+
+function AppWrapper({
+  children,
+  setAppKey,
+}: {
+  children: React.ReactNode;
+  setAppKey: React.Dispatch<React.SetStateAction<number>>;
+}) {
+  const { user, logout } = useAuth();
+
+  // Patch logout to force remount
+  const handleLogout = async () => {
+    await logout();
+    setAppKey((prev) => prev + 1); // force remount
+  };
+
+  // You can pass handleLogout to Navbar if needed
+  return <>{children}</>;
 }

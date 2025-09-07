@@ -3,6 +3,7 @@ import { createContext, useContext, useState, useEffect } from "react";
 
 interface User {
   _id: string;
+  username?: string;
   email?: string;
   phoneNumber?: string;
   gender?: string;
@@ -25,7 +26,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | Admin | null>(null);
-  const [loading, setLoading] = useState(true); // <-- NEW
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -39,7 +40,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         console.error("Failed to parse user from localStorage");
       }
     }
-    setLoading(false); // done checking localStorage
+    setLoading(false);
   }, []);
 
   const login = (userData: User | Admin) => {
@@ -54,7 +55,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const logout = async () => {
     try {
-      await fetch("/api/auth/logout", {
+      await fetch("/api/logout", {
         method: "POST",
         credentials: "include",
       });
