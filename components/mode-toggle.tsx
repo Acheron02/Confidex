@@ -13,10 +13,11 @@ export function ModeToggle() {
       variant="outline"
       size="icon"
       onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+      className="w-12 h-12 rounded-3xl hover:cursor-pointer"
     >
-      <Sun className="h-[1.2rem] w-[1.2rem] dark:hidden" />
-      <Moon className="hidden h-[1.2rem] w-[1.2rem] dark:block" />
-      <span className="sr-only z-10 absolute">Toggle theme</span>
+      <Sun className="h-[1.5rem] w-[1.5rem] dark:hidden" />
+      <Moon className="hidden h-[1.5rem] w-[1.5rem] dark:block" />
+      <span className="sr-only z-9999999 absolute">Toggle theme</span>
     </Button>
   );
 }

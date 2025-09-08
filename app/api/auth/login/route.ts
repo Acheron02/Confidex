@@ -2,6 +2,7 @@ import dbConnect from "@/lib/dbConnect";
 import User from "@/models/User";
 import { NextResponse } from "next/server";
 import cookie from "cookie";
+import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 
 const JWT_SECRET = process.env.JWT_SECRET as string;
@@ -12,50 +13,62 @@ export async function POST(req: Request) {
     const body = await req.json();
 
     const phone = String(body.phoneNumber || "").trim();
-
-    const user = (await User.findOne({ phoneNumber: phone }).lean()) as {
-      _id: string;
-      phoneNumber: string;
-      gender?: string;
-      dob?: string;
-      createdAt?: string;
-    } | null;
-
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    if (!phone) {
+      return NextResponse.json(
+        { error: "Phone number required" },
+        { status: 400 }
+      );
     }
 
-    // ✅ generate JWT
+    // Fetch all users (since phone is hashed, we can't query directly)
+    const users = await User.find().lean();
+
+    let matchedUser: any = null;
+    for (const u of users) {
+      const isMatch = await bcrypt.compare(phone, u.phoneNumber);
+      if (isMatch) {
+        matchedUser = u;
+        break;
+      }
+    }
+
+    if (!matchedUser) {
+      return NextResponse.json(
+        { error: "Invalid credentials" },
+        { status: 401 }
+      );
+    }
+
+    // ✅ generate JWT with plain phone for session use
     const token = jwt.sign(
-      { id: user._id.toString(), phone: user.phoneNumber },
+      { id: matchedUser._id.toString(), phone },
       JWT_SECRET,
       { expiresIn: "5m" }
     );
 
-    // ✅ build response first
+    // ✅ build response
     const res = NextResponse.json(
       {
         message: "Login successful",
         user: {
-          _id: user._id,
-          username: (user as any).username,
-          phoneNumber: user.phoneNumber,
-          gender: user.gender,
-          dob: user.dob,
-          createdAt: user.createdAt,
+          _id: matchedUser._id,
+          username: matchedUser.username,
+          gender: matchedUser.gender,
+          dob: matchedUser.dob,
+          createdAt: matchedUser.createdAt,
         },
       },
       { status: 200 }
     );
 
-    // ✅ attach cookie to response
+    // ✅ attach session cookie
     res.headers.set(
       "Set-Cookie",
       cookie.serialize("session", token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "strict",
-        maxAge: 5 * 60,
+        maxAge: 5 * 60, // 5 minutes
         path: "/",
       })
     );

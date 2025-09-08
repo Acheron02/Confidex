@@ -28,6 +28,10 @@ export default function Navbar() {
     setMounted(true);
   }, []);
 
+  if (pathname.startsWith("/admin/dashboard")) {
+    return null;
+  }
+
   // default theme to light for SSR
   const currentTheme = mounted
     ? theme === "system"
@@ -97,7 +101,7 @@ export default function Navbar() {
                 <motion.span
                   layoutId="underline"
                   className="absolute left-0 bottom-0 h-[4px] bg-[#F95738] rounded"
-                  style={{ width: "100%"}}
+                  style={{ width: "100%" }}
                   transition={{ type: "spring", stiffness: 500, damping: 30 }}
                 />
               )}
@@ -117,13 +121,23 @@ export default function Navbar() {
             Sign Up
           </button>
         ) : user.role === "admin" ? (
-          <Link
-            href="/admin/dashboard"
-            className="bg-[#0D3B66] text-[#F4D35E] px-4 py-2 rounded-[15px] hover:cursor-pointer
+          pathname === "/admin/dashboard" ? (
+            <button
+              onClick={logout}
+              className="bg-[#F95738] text-white px-4 py-2 rounded-[15px] hover:cursor-pointer
+              dark:bg-[#0D3B66] dark:text-[#FAF0CA]"
+            >
+              Logout
+            </button>
+          ) : (
+            <Link
+              href="/admin/dashboard"
+              className="bg-[#0D3B66] text-[#F4D35E] px-4 py-2 rounded-[15px] hover:cursor-pointer
             dark:bg-[#F95738] dark:text-[#FAF0CA]"
-          >
-            Admin
-          </Link>
+            >
+              Admin
+            </Link>
+          )
         ) : user._id ? (
           pathname === `/users/${user._id}` ? (
             <button
@@ -147,6 +161,9 @@ export default function Navbar() {
             <Loader2 className="h-4 w-4 animate-spin" /> Loading...
           </span>
         )}
+      </div>
+
+      <div className="fixed top-10 right-5 z-[9999]">
         <ModeToggle />
       </div>
 

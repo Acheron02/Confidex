@@ -74,13 +74,15 @@ export function Register({ onSwitchToLogin, onSwitchToAdmin, onClose }: Register
     }
 
     const res = await fetch("/api/checkPhone", {
+      // 🔄 match API filename
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ phoneNumber: form.phoneNumber }),
     });
 
     const data = await res.json();
-    if (res.ok) {
+
+    if (data.exists) {
       setErrors({ phoneNumber: "This phone number is already registered." });
       setStatus("This phone number is already registered.");
       return;

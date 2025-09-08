@@ -1,8 +1,11 @@
+// app/api/auth/register/route.ts
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import User from "@/models/User";
 import jwt from "jsonwebtoken";
 import cookie from "cookie";
+import bcrypt from "bcrypt";
+import { sha256Phone } from "@/app/utils/hashPhone";
 import { generateUniqueUsernameWithPhone } from "@/app/utils/generateUsername";
 
 const JWT_SECRET = process.env.JWT_SECRET as string;
@@ -33,48 +36,47 @@ export async function POST(req: Request) {
       );
     }
 
-    // Check if user already exists
-    let user = await User.findOne({ phoneNumber: phone });
-    let username = "";
+    // 🔐 Use shared util for consistency
+    const phoneHash = sha256Phone(phone); // deterministic for lookup
+    const phoneBcrypt = await bcrypt.hash(phone, 10); // non-deterministic for secure storage
 
-    if (user) {
-      // Use existing username
-      username = user.username || "";
+    // 🔎 Check if already exists by SHA256 hash
+    const existingUser = await User.findOne({ phoneHash });
+    if (existingUser) {
       return NextResponse.json(
-        { error: "Phone number already registered", username },
+        {
+          error: "Phone number already registered",
+          username: existingUser.username,
+        },
         { status: 409 }
       );
-    } else {
-      // Generate a new unique username
-      username = await generateUniqueUsernameWithPhone(phone);
-
-      // Create new user
-      user = await User.create({
-        phoneNumber: phone,
-        gender,
-        dob,
-        username,
-      });
     }
 
-    // Generate JWT token
-    const token = jwt.sign(
-      { id: user._id.toString(), phone: user.phoneNumber },
-      JWT_SECRET,
-      {
-        expiresIn: "5mins",
-      }
-    );
+    // ✅ Generate username
+    const username = await generateUniqueUsernameWithPhone(phone);
 
-    // Build response and attach cookie
+    // ✅ Create user
+    const user = await User.create({
+      phoneHash,
+      phoneNumber: phoneBcrypt,
+      gender,
+      dob,
+      username,
+    });
+
+    // 🎟️ JWT contains only safe info
+    const token = jwt.sign({ id: user._id.toString(), phoneHash }, JWT_SECRET, {
+      expiresIn: "5m",
+    });
+
+    // ✅ Response
     const response = NextResponse.json(
       {
         user: {
           _id: user._id.toString(),
-          phoneNumber: user.phoneNumber,
+          username: user.username,
           gender: user.gender,
           dob: user.dob,
-          username: user.username, // return username to frontend
           createdAt: user.createdAt,
         },
         token,

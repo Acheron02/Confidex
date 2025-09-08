@@ -163,6 +163,11 @@ import { QRCodeCanvas } from "qrcode.react";
       }
     };
 
+    const handleGenerateDummyQr = () => {
+      setQrToken("https://www.youtube.com/@KrammyTor"); 
+      setIsQrDialogOpen(true);
+    };
+
    
 
     return (
@@ -258,7 +263,7 @@ import { QRCodeCanvas } from "qrcode.react";
             <Button
               variant="outline"
               className="hover:cursor-pointer"
-              onClick={handleGenerateQr}
+              onClick={handleGenerateDummyQr}
             >
               Show QR Code
             </Button>
