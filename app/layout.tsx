@@ -6,6 +6,7 @@ import { ThemeProvider } from "@/components/themes-provider";
 import { Footer } from "@/components/Footer/page";
 import { AuthProvider, useAuth } from "@/components/context/AuthContext";
 import { AuthProviderWrapper } from "@/components/context/authProviderWrapper";
+import { ModeToggle } from "@/components/mode-toggle";
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -32,6 +33,7 @@ export default function RootLayout({
           <AuthProvider>
             {/* Key changes force remount */}
             <AuthProviderWrapper>
+              <ModeToggle />
               <Navbar />
               <main className="flex-1">{children}</main>
               <Footer />

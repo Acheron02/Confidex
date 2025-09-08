@@ -1,15 +1,17 @@
 "use client";
-import Link from "next/link";
 import { Poppins } from "next/font/google";
-import { ModeToggle } from "@/components/mode-toggle";
 import { motion } from "framer-motion";
 import { AuthDialog } from "../authDialog";
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/components/context/AuthContext";
-import { Loader2 } from "lucide-react";
 import Image from "next/image";
 import { useTheme } from "next-themes";
+
+interface SidebarProps {
+  onSelect: (key: string) => void;
+  selected: string | null;
+}
 
 const poppins = Poppins({
   weight: ["400", "700"],
@@ -17,7 +19,7 @@ const poppins = Poppins({
   variable: "--font-poppins",
 });
 
-export default function Sidebar() {
+export default function Sidebar({ onSelect, selected }: SidebarProps) {
   const [open, setOpen] = useState(false);
   const { user, logout } = useAuth();
   const { theme, systemTheme } = useTheme();
@@ -32,9 +34,24 @@ export default function Sidebar() {
 
   const currentTheme = theme === "system" ? systemTheme : theme;
 
+  // Format name: "LASTNAME, F{MIDDLE_INITIALS}."
+  const formatName = (fullName: string | undefined) => {
+    if (!fullName) return "Admin";
+    const parts = fullName.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0]; // single name
+    const firstName = parts[0];
+    const lastName = parts[parts.length - 1];
+    const middleInitials = parts
+      .slice(1, -1)
+      .map((name) => name[0].toUpperCase())
+      .join("");
+    return middleInitials
+      ? `${lastName}, ${firstName[0].toUpperCase()}${middleInitials}.`
+      : `${lastName}, ${firstName[0].toUpperCase()}.`;
+  };
+
   return (
     <motion.div
-      key={user ? user._id : "guest"}
       initial={{ x: -100, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
       transition={{ duration: 1, ease: "easeInOut" }}
@@ -44,8 +61,8 @@ export default function Sidebar() {
         text-[#0D3B66] dark:text-[#FAF0CA]`}
     >
       {/* Logo */}
-      <div className="flex items-center justify-center mb-3 border">
-        {mounted ? (
+      <div className="flex items-center justify-center mb-3">
+        {mounted && (
           <Image
             src={
               currentTheme === "dark"
@@ -57,30 +74,63 @@ export default function Sidebar() {
             height={50}
             className="h-auto"
           />
-        ) : (
-          <></>
         )}
       </div>
 
-      <div className="border w-full h-30 flex flex-row items-center">
-        <div className="border w-15 h-15 mr-1"></div>
-        <div className="border w-fit h-15"><h1 className="p-1 text-[1rem] text-left">Welcome admin, Acheron42</h1></div>
-      </div>
-
-      <div className="border w-full h-full mt-5 mb-5"></div>
-
-      <div className="mt-auto space-y-4">
+      <div className="w-full h-px my-5 dark:border-[#FAF0CA]">
         <button
-          onClick={logout}
-          className="w-full bg-[#F95738] text-white px-4 py-2 rounded-[10px]
-                dark:bg-[#0D3B66] dark:text-[#FAF0CA] hover:cursor-pointer"
+          className={`w-full h-fit active:underline hover:underline decoration-2 hover:cursor-pointer ${
+            selected === "admin" ? "underline font-semibold" : ""
+          }`}
+          onClick={() => onSelect("admin")}
         >
-          Logout
+          Admins
         </button>
       </div>
 
-      <div className="fixed top-10 right-5 z-[9999]">
-        <ModeToggle />
+      {/* Content Spacer */}
+      <div className="flex-1"></div>
+
+      {/* Profile & Logout at Bottom */}
+      <div className="flex items-center justify-between mt-auto">
+        {/* Profile */}
+        <div className="flex items-center space-x-2 min-w-0">
+          <div className="w-14 h-14 flex-shrink-0 overflow-hidden rounded-full">
+            <Image
+              src="/gelo.jpg"
+              alt="Profile"
+              width={56}
+              height={56}
+              style={{ objectFit: "cover" }}
+              className="w-full h-full"
+            />
+          </div>
+
+          <div className="flex flex-col overflow-hidden w-30">
+            <span
+              className="font-semibold text-sm"
+              title={user?.name || "Admin"}
+            >
+              {formatName(user?.name)}
+            </span>
+            <span
+              className="text-xs text-gray-500 dark:text-gray-300"
+              title="Admin"
+            >
+              Admin
+            </span>
+          </div>
+        </div>
+
+        {/* Logout Button */}
+        <button
+          onClick={logout}
+          className="ml-2 py-2 text-sm rounded-lg bg-transparent text-black
+           dark:text-[#fff8da] hover:opacity-90 hover:cursor-pointer hover:underline
+            decoration-2 whitespace-nowrap"
+        >
+          Logout
+        </button>
       </div>
 
       {/* Auth Modal */}

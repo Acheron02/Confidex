@@ -3,6 +3,7 @@ import { createContext, useContext, useState, useEffect } from "react";
 
 interface User {
   _id: string;
+  name?: string;
   username?: string;
   email?: string;
   phoneNumber?: string;
@@ -17,7 +18,7 @@ interface Admin extends User {
 
 interface AuthContextType {
   user: User | Admin | null;
-  loading: boolean; // <-- NEW
+  loading: boolean; 
   login: (user: User | Admin) => void;
   logout: () => void;
 }

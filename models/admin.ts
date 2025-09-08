@@ -3,14 +3,19 @@ import mongoose, { Schema, Document } from "mongoose";
 export interface IAdmin extends Document {
   email: string;
   password: string;
+  name: string;
+  role: string;
 }
 
-const AdminSchema = new mongoose.Schema({
-  email: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
-}, { collection: "admins" }); 
+const AdminSchema = new Schema<IAdmin>(
+  {
+    name: { type: String, required: true },
+    email: { type: String, required: true, unique: true },
+    password: { type: String, required: true },
+    role: { type: String, default: "admin" },
+  },
+  { collection: "admins" }
+);
 
-
-// force mongoose to use the "admins" collection
-export default mongoose.models.admins ||
-  mongoose.model<IAdmin>("admins", AdminSchema);
+export default mongoose.models.Admin ||
+  mongoose.model<IAdmin>("Admin", AdminSchema);

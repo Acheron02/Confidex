@@ -171,7 +171,7 @@ import { QRCodeCanvas } from "qrcode.react";
    
 
     return (
-      <div className="w-full h-screen pt-[10%] px-6 antialiased grid grid-rows-[0.2fr_0.01fr_0.9fr] gap-4">
+      <div className="w-full h-[80vh] mt-[8%] px-6 antialiased grid grid-rows-[0.2fr_0.01fr_0.9fr]">
         {/* Header Section */}
         <div className="w-full grid grid-cols-[0.5fr_1.5fr_0.5fr]">
           <div className="flex  pl-3 flex-col  items-center justify-center">
@@ -258,7 +258,7 @@ import { QRCodeCanvas } from "qrcode.react";
             </div>
           </div>
 
-          <div className="flex flex-col items-center justify-center space-y-4">
+          <div className="flex flex-col items-center justify-center space-y-2">
             {/* Show QR Code Button */}
             <Button
               variant="outline"
@@ -349,7 +349,7 @@ import { QRCodeCanvas } from "qrcode.react";
         </div>
 
         {/* Pagination Controls */}
-        <div className="flex justify-center gap-2 mt-2 mb-4">
+        <div className="h-fit flex justify-center gap-2 mt-2">
           <Button
             onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
             disabled={currentPage === 1}

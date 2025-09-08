@@ -7,9 +7,8 @@ export async function POST(req: Request) {
   try {
     await dbConnect();
 
-    const { email, password } = await req.json();
+    const { email, password, name } = await req.json();
 
-    // 🔹 Validate input
     if (!email || !password) {
       return NextResponse.json(
         { error: "Email and password are required" },
@@ -19,32 +18,31 @@ export async function POST(req: Request) {
 
     const normalizedEmail = String(email).toLowerCase().trim();
 
-    // 🔹 Find admin by email
     const admin = await Admin.findOne({ email: normalizedEmail });
     if (!admin) {
       return NextResponse.json(
-        { error: "Invalid email or password" }, // Generic message for security
+        { error: "Invalid email or password" },
         { status: 401 }
       );
     }
 
-    // 🔹 Compare password
     const isMatch = await bcrypt.compare(password, admin.password);
     if (!isMatch) {
       return NextResponse.json(
-        { error: "Invalid email or password" }, // Generic message for security
+        { error: "Invalid email or password" },
         { status: 401 }
       );
     }
 
-    // 🔹 Login success
+    // 🔹 Include username or name in the response
     return NextResponse.json(
       {
         message: "Admin login successful",
         admin: {
-          _id: admin._id, // ✅ include id
-          email: admin.email, // ✅ include email
-          role: "admin", // ✅ include role
+          _id: admin._id,
+          email: admin.email,
+          name: admin.name,
+          role: "admin",
         },
       },
       { status: 200 }

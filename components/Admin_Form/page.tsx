@@ -7,6 +7,7 @@ import { Eye, EyeClosed } from "lucide-react";
 import { VerificationForm } from "../Verification_form/page";
 import { useAuth } from "@/components/context/AuthContext";
 import { useRouter } from "next/navigation";
+import { PasswordInput } from "../passwordInput";
 
 interface LoginProps {
   onSwitchToLogin: () => void;
@@ -49,6 +50,7 @@ export function AdminLogin({ onSwitchToLogin, onClose }: LoginProps) {
       login({
         _id: adminData._id,
         email: adminData.email,
+        name: adminData.name,
         role: "admin",
       });
 
@@ -147,34 +149,16 @@ export function AdminLogin({ onSwitchToLogin, onClose }: LoginProps) {
         {/* Password */}
         <div className="grid gap-2 relative mt-6">
           <Label htmlFor="password">Password</Label>
-          <div className="relative w-full">
-            <Input
-              name="password"
-              id="password"
-              type={showPassword ? "text" : "password"}
-              placeholder="Enter password"
-              className="pr-10"
-              onChange={(e) => {
-                setPassword(e.target.value);
-                if (fieldErrors.password)
-                  setFieldErrors((prev) => ({ ...prev, password: undefined }));
-              }}
-            />
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-0 top-0 h-full hover:cursor-pointer"
-            >
-              {showPassword ? <Eye /> : <EyeClosed />}
-            </Button>
-          </div>
-          {fieldErrors.password && (
-            <p className="text-red-500 text-[0.875rem] px-1">
-              {fieldErrors.password}
-            </p>
-          )}
+          <PasswordInput
+            id="password"
+            name="password"
+            value={password}
+            onChange={(val) => {
+              setPassword(val);
+              if (fieldErrors.password)
+                setFieldErrors((prev) => ({ ...prev, password: undefined }));
+            }}
+          />
         </div>
 
         {/* Error */}
@@ -202,6 +186,7 @@ export function AdminLogin({ onSwitchToLogin, onClose }: LoginProps) {
             variant="outline"
             type="button"
             formNoValidate
+            onClick={onClose}
             className="hover:cursor-pointer"
           >
             Cancel

@@ -1,7 +1,6 @@
 "use client";
 import Link from "next/link";
 import { Poppins } from "next/font/google";
-import { ModeToggle } from "@/components/mode-toggle";
 import { motion } from "framer-motion";
 import { AuthDialog } from "../authDialog";
 import { useState, useEffect } from "react";
@@ -162,11 +161,6 @@ export default function Navbar() {
           </span>
         )}
       </div>
-
-      <div className="fixed top-10 right-5 z-[9999]">
-        <ModeToggle />
-      </div>
-
       {/* Auth Modal */}
       <AuthDialog open={open} onOpenChange={setOpen} />
     </motion.div>
