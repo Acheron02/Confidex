@@ -96,6 +96,13 @@ export default function AdminDashboardPage() {
             onUpdate={handleUpdateAdmin}
           />
         )}
+
+        {selected === "adminHome" && (
+          <div>
+            <h1 className="text-2xl font-bold mb-4">Welcome!</h1>
+            <p>Select an item from the sidebar to view details.</p>
+          </div>
+        )}
       </div>
     </div>
   );
