@@ -197,6 +197,7 @@ import { QRCodeCanvas } from "qrcode.react";
 
             <Button
               variant="outline"
+              disabled={transactions.length === 0}
               className="ml-2 hover:cursor-pointer"
               onClick={async () => {
                 if (!clientUser?._id) return;

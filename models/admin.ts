@@ -5,6 +5,7 @@ export interface IAdmin extends Document {
   password: string;
   name: string;
   role: string;
+  profileImage?: string; // <-- added
 }
 
 const AdminSchema = new Schema<IAdmin>(
@@ -13,6 +14,7 @@ const AdminSchema = new Schema<IAdmin>(
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     role: { type: String, default: "admin" },
+    profileImage: { type: String, default: "/image.png" }, // default image
   },
   { collection: "admins" }
 );

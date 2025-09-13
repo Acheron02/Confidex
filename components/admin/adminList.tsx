@@ -39,10 +39,10 @@ export default function AdminList({
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold">Admins</h1>
+      <div className="sticky top-0 z-10 w-full bg-gray-900 p-4 mb-6">
+        <h1 className="text-2xl font-bold text-white">Admins</h1>
       </div>
-
+      
       {loading ? (
         <p>Loading admins...</p>
       ) : admins.length === 0 ? (
@@ -76,7 +76,6 @@ export default function AdminList({
             setAdding(false);
             setShowAddDialog(false);
           }}
-          adding={adding}
         />
       )}
 

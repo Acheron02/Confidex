@@ -4,7 +4,7 @@ import { Poppins } from "next/font/google";
 import { motion } from "framer-motion";
 import { AuthDialog } from "../authDialog";
 import { useState, useEffect } from "react";
-import { redirect, usePathname } from "next/navigation";
+import { redirect } from "next/navigation";
 import { useAuth } from "@/components/context/AuthContext";
 import Image from "next/image";
 import { useTheme } from "next-themes";
@@ -32,7 +32,16 @@ export default function Sidebar({ onSelect, selected }: SidebarProps) {
   const { theme, systemTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
-  useEffect(() => setMounted(true), []);
+  // 🔹 profile image state
+  const [profileImage, setProfileImage] = useState<string | null>(null);
+
+  // load from localStorage on mount
+  useEffect(() => {
+    setMounted(true);
+    const savedImage = localStorage.getItem("profileImage");
+    if (savedImage) setProfileImage(savedImage);
+  }, []);
+
   if (!mounted) return null;
 
   const currentTheme = theme === "system" ? systemTheme : theme;
@@ -49,6 +58,26 @@ export default function Sidebar({ onSelect, selected }: SidebarProps) {
     return middleInitials
       ? `${lastName}, ${firstName[0].toUpperCase()}${middleInitials}.`
       : `${lastName}, ${firstName[0].toUpperCase()}.`;
+  };
+
+  // 🔹 handle upload
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const res = await fetch("/api/uploadAdminProfileImage", {
+      method: "POST",
+      body: formData, // ✅ this is FormData (web API type), never Buffer
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      setProfileImage(data.url);
+      localStorage.setItem("profileImage", data.url);
+    }
   };
 
   return (
@@ -99,13 +128,24 @@ export default function Sidebar({ onSelect, selected }: SidebarProps) {
       <div className="flex items-center justify-between mt-auto">
         <div className="flex items-center space-x-2 min-w-0">
           <div className="w-14 h-14 flex-shrink-0 overflow-hidden rounded-full">
-            <Image
-              src="/gelo.jpg"
-              alt="Profile"
-              width={56}
-              height={56}
-              style={{ objectFit: "cover" }}
-              className="w-full h-full"
+            {/* 🔹 Upload-enabled profile image */}
+            <label htmlFor="uploadInput" className="cursor-pointer">
+              <Image
+                src={profileImage || "/image.png"}
+                alt="Profile"
+                width={56}
+                height={56}
+                unoptimized
+                style={{ objectFit: "cover" }}
+                className="w-full h-full"
+              />
+            </label>
+            <input
+              id="uploadInput"
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleFileChange}
             />
           </div>
 
