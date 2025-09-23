@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { PhoneInput } from "../ui/phone-input";
 import { DialogClose } from "@/components/ui/dialog";
 import { VerificationForm } from "../Verification_form/page";
-import { redirect } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/context/AuthContext";
 
 interface LoginProps {
@@ -21,6 +21,7 @@ export function Login({
   onClose,
 }: LoginProps) {
   const { login } = useAuth();
+  const router = useRouter();
 
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ phoneNumber: "" });
@@ -46,14 +47,14 @@ export function Login({
   const handleResendOTP = () => {
     const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
     setOtp(newOtp);
-    console.log("Resent OTP:", newOtp);
+    console.log("Resent OTP:", newOtp); // TODO: send via SMS service
   };
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
 
-    // Check if phone is registered
+    // ✅ Call backend to check if phone exists
     const res = await fetch("/api/checkPhone", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -66,24 +67,26 @@ export function Login({
       return;
     }
 
-    // ✅ Phone exists, generate OTP
+    // ✅ Generate OTP locally (mock), later replace with backend SMS service
     const generated = Math.floor(100000 + Math.random() * 900000).toString();
     setOtp(generated);
     setTempPhone(form.phoneNumber);
     console.log("Generated OTP (Login):", generated);
+
+    // Open OTP dialog
     setOpen(true);
   };
 
-
   const handleVerificationSubmit = async (code: string) => {
     if (code === otp && tempPhone) {
-      // ✅ Call login API AFTER OTP verification
+      // ✅ Call login API after OTP verification
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phoneNumber: tempPhone }),
       });
       const data = await res.json();
+
       if (!res.ok) {
         setStatus(data.error || "Login failed");
         return;
@@ -93,7 +96,9 @@ export function Login({
       setOpen(false);
       login(data.user);
       onClose();
-      redirect(`/users/${data.user._id}`);
+
+      // ✅ redirect to user profile/dashboard
+      router.push(`/users/${data.user._id}`);
     } else {
       setStatus("Incorrect OTP, try again.");
     }
