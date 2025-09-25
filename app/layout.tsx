@@ -1,12 +1,12 @@
-
 import type { Metadata } from "next";
 import Navbar from "../components/Navbar/page";
 import "./globals.css";
 import { ThemeProvider } from "@/components/themes-provider";
 import { Footer } from "@/components/Footer/page";
-import { AuthProvider, useAuth } from "@/components/context/AuthContext";
+import { AuthProvider } from "@/components/context/AuthContext";
 import { AuthProviderWrapper } from "@/components/context/authProviderWrapper";
 import { ModeToggle } from "@/components/mode-toggle";
+import { WSProvider } from "@/components/context/wsContext";
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -18,8 +18,6 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-
-
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="antialiased flex flex-col min-h-screen overflow-y-auto scrollbar-hidden">
@@ -31,35 +29,18 @@ export default function RootLayout({
         >
           {/* Wrap in AuthProvider */}
           <AuthProvider>
-            {/* Key changes force remount */}
             <AuthProviderWrapper>
-              <ModeToggle />
-              <Navbar />
-              <main className="flex-1">{children}</main>
-              <Footer />
+              {/* Wrap in WebSocket provider */}
+              <WSProvider>
+                <ModeToggle />
+                <Navbar />
+                <main className="flex-1">{children}</main>
+                <Footer />
+              </WSProvider>
             </AuthProviderWrapper>
           </AuthProvider>
         </ThemeProvider>
       </body>
     </html>
   );
-}
-
-function AppWrapper({
-  children,
-  setAppKey,
-}: {
-  children: React.ReactNode;
-  setAppKey: React.Dispatch<React.SetStateAction<number>>;
-}) {
-  const { user, logout } = useAuth();
-
-  // Patch logout to force remount
-  const handleLogout = async () => {
-    await logout();
-    setAppKey((prev) => prev + 1); // force remount
-  };
-
-  // You can pass handleLogout to Navbar if needed
-  return <>{children}</>;
 }

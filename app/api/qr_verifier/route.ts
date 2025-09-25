@@ -2,6 +2,7 @@ import dbConnect from "@/lib/dbConnect";
 import QrToken from "@/models/qrToken";
 import User from "@/models/User";
 import { NextResponse } from "next/server";
+import wss, { broadcast } from "@/server/wsServer"; // import your WS server
 
 type UserType = {
   _id: string;
@@ -17,13 +18,13 @@ export async function POST(req: Request) {
     await dbConnect();
     const body = await req.json();
 
-    // CASE 1: Generate a QR token (web dashboard)
+    // --------------------------
+    // CASE 1: Generate QR token
+    // --------------------------
     if (body.userId) {
       const user = (await User.findById(body.userId).lean()) as UserType | null;
-
-      if (!user) {
+      if (!user)
         return NextResponse.json({ error: "User not found" }, { status: 404 });
-      }
 
       const token = Math.random().toString(36).substring(2, 12); // 10-char random
       const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
@@ -38,12 +39,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ token }, { status: 200 });
     }
 
-    // CASE 2: Verify a scanned QR code (Pi or web)
+    // --------------------------
+    // CASE 2: Verify QR code
+    // --------------------------
     if (body.qrCode) {
       const qrRecord = await QrToken.findOne({ token: body.qrCode });
-      if (!qrRecord) {
+      if (!qrRecord)
         return NextResponse.json({ error: "Invalid QR code" }, { status: 401 });
-      }
 
       if (qrRecord.used || new Date() > qrRecord.expiresAt) {
         return NextResponse.json(
@@ -55,15 +57,24 @@ export async function POST(req: Request) {
       const user = (await User.findById(
         qrRecord.userId
       ).lean()) as UserType | null;
-      if (!user) {
+      if (!user)
         return NextResponse.json({ error: "User not found" }, { status: 404 });
-      }
 
+      // Mark token as used
       qrRecord.used = true;
       await qrRecord.save();
 
+      // --------------------------
+      // Broadcast to WS clients
+      // --------------------------
+      broadcast({
+        type: "qr_scanned",
+        userId: qrRecord.userId.toString(),
+        token: qrRecord.token,
+      });
+
       return NextResponse.json({
-        message: "Login successful",
+        message: "QR scanned successfully",
         user: {
           _id: user._id,
           username: user.username,

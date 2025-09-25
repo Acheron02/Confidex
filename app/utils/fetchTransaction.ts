@@ -2,7 +2,6 @@
 export interface TransactionItem {
   name: string;
   productID: string;
-  result: string;
 }
 
 export interface Transaction {
@@ -10,29 +9,38 @@ export interface Transaction {
   user_id: string;
   status: string;
   items: TransactionItem[];
-  purchasedDate?: string; // optional now
+  purchasedDate?: string;
 }
 
 export const fetchUserTransactions = async (
   user_id: string
 ): Promise<Transaction[]> => {
   try {
-    const res = await fetch(`/api/transaction?user_id=${user_id}`);
+    const res = await fetch(`/api/transaction?user_id=${user_id}`, {
+      cache: "no-store", // make sure you always get fresh data
+    });
     if (!res.ok) throw new Error("Failed to fetch transactions");
 
     const data = await res.json();
 
-    // Ensure purchasedDate is a string or undefined
     const transactions: Transaction[] = (data.transactions ?? []).map(
       (tx: any) => ({
-        ...tx,
-        purchasedDate: tx.purchasedDate ? String(tx.purchasedDate) : undefined,
+        _id: String(tx._id),
+        user_id: String(tx.user_id),
+        status: tx.status,
+        items: tx.items.map((item: any) => ({
+          name: item.name,
+          productID: item.productID,
+        })),
+        purchasedDate: tx.purchasedDate
+          ? new Date(tx.purchasedDate).toISOString()
+          : undefined,
       })
     );
 
     return transactions;
   } catch (err) {
-    console.error(err);
+    console.error("fetchUserTransactions error:", err);
     return [];
   }
 };

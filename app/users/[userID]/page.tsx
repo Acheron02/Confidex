@@ -6,6 +6,7 @@ import { useEffect, useState, useRef } from "react";
 import CheckAuth from "@/components/checkAuth";
 import { Button } from "@/components/ui/button";
 import { simulatePurchase } from "@/app/utils/simulateTransaction";
+import { fetchUserResults, Result } from "@/app/utils/fetchResult";
 import {
   fetchUserTransactions,
   Transaction,
@@ -21,7 +22,7 @@ const shuffleArray = (arr: string[]) => {
   return arr;
 };
 
-// Generate username from phone number (last 4 digits shuffled + random string)
+// Generate username from phone number
 const generateUsernameFromPhone = (phone: string) => {
   const last4 = phone.slice(-4).split("");
   const shuffled = shuffleArray(last4).join("");
@@ -35,8 +36,12 @@ export default function DashboardPage({ params }: { params: { id: string } }) {
 
   const [isClient, setIsClient] = useState(false);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [results, setResults] = useState<Result[]>([]);
   const [qrToken, setQrToken] = useState<string | null>(null);
+  const qrTokenRef = useRef<string | null>(null); // keep latest QR token
   const [isQrDialogOpen, setIsQrDialogOpen] = useState(false);
+  const [isSimulating, setIsSimulating] = useState(false);
+
   const [clientUser, setClientUser] = useState(() => {
     if (!user) return null;
     return user.username
@@ -48,20 +53,23 @@ export default function DashboardPage({ params }: { params: { id: string } }) {
             : "User" + Math.floor(Math.random() * 1000),
         };
   });
-  const [isSimulating, setIsSimulating] = useState(false);
 
-  // QR timer states
   const [qrExpiry, setQrExpiry] = useState<Date | null>(null);
   const [timeLeft, setTimeLeft] = useState<number>(0); // in seconds
   const qrCanvasRef = useRef<HTMLCanvasElement>(null);
 
-  // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // Ensure rendering only on client
+  // Update ref whenever qrToken changes
+  useEffect(() => {
+    qrTokenRef.current = qrToken;
+  }, [qrToken]);
+
+  // Only render on client
   useEffect(() => setIsClient(true), []);
 
+  // Sync clientUser with Auth context
   useEffect(() => {
     if (!user) return;
     setClientUser((prev) => {
@@ -79,10 +87,73 @@ export default function DashboardPage({ params }: { params: { id: string } }) {
     });
   }, [user]);
 
+  // Fetch transactions and results
+  useEffect(() => {
+    if (!clientUser?._id) return;
+    const fetchData = async () => {
+      const txs = await fetchUserTransactions(clientUser._id);
+      const res = await fetchUserResults(clientUser._id);
+      setTransactions(txs || []);
+      setResults(res || []);
+    };
+    fetchData();
+  }, [clientUser?._id]);
+
+  // WebSocket for real-time updates
+  useEffect(() => {
+    if (!clientUser?._id) return;
+
+    const ws = new WebSocket("ws://localhost:8080");
+
+    ws.onopen = () => console.log("Connected to WebSocket server");
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+
+        // ✅ QR scanned
+        if (
+          data.type === "qr_scanned" &&
+          String(data.userId) === String(clientUser._id) &&
+          data.token === qrTokenRef.current
+        ) {
+          setIsQrDialogOpen(false);
+        }
+
+        // New transaction
+        if (data.type === "new_transaction") {
+          const transaction: Transaction = data.transaction;
+          if (transaction.user_id === clientUser._id) {
+            setTransactions((prev) => [transaction, ...prev]);
+          }
+        }
+
+        // New result
+        if (data.type === "new_result") {
+          const result: Result = data.result;
+          if (result.user_id === clientUser._id) {
+            setResults((prev) => {
+              const exists = prev.some(
+                (r) => r._id === result._id || r.productID === result.productID
+              );
+              return exists ? prev : [result, ...prev];
+            });
+          }
+        }
+      } catch (err) {
+        console.error("WS parse error:", err);
+      }
+    };
+
+    ws.onclose = () => console.log("WebSocket closed");
+    ws.onerror = (err) => console.error("WebSocket error:", err);
+
+    return () => ws.close();
+  }, [clientUser?._id]);
+
   // Redirect logic
   useEffect(() => {
     if (!isClient || !clientUser) return;
-
     if (clientUser.role === "admin") {
       router.replace("/admin/dashboard");
       return;
@@ -93,55 +164,50 @@ export default function DashboardPage({ params }: { params: { id: string } }) {
     }
   }, [isClient, clientUser, params.id, router]);
 
-  // Fetch transactions
-  useEffect(() => {
-    if (!clientUser?._id) return;
-    const fetchTransactions = async () => {
-      const txs = await fetchUserTransactions(clientUser._id);
-      setTransactions(txs);
-    };
-    fetchTransactions();
-  }, [clientUser?._id]);
-
+  // Merge transactions and results
   const allItems = transactions.flatMap((tx, txIndex) =>
-    tx.items.map((item, itemIndex) => ({
-      ...item,
-      txIndex,
-      itemIndex,
-      purchasedDate: tx.purchasedDate,
-      txId: tx._id,
-    }))
+    tx.items.map((item, itemIndex) => {
+      const foundResult = results.find(
+        (r) => r.user_id === clientUser?._id && r.productID === item.productID
+      );
+      return {
+        ...item,
+        txIndex,
+        itemIndex,
+        purchasedDate: tx.purchasedDate,
+        txId: tx._id,
+        result: foundResult?.result || "Pending",
+      };
+    })
   );
 
   const totalPages = Math.max(Math.ceil(allItems.length / itemsPerPage), 1);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const currentItems = allItems.slice(startIndex, endIndex);
+  const currentItems = allItems.slice(startIndex, startIndex + itemsPerPage);
 
   useEffect(() => {
     if (currentPage > totalPages) setCurrentPage(totalPages);
   }, [totalPages, currentPage]);
 
-  // QR countdown timer effect
+  // QR countdown timer
   useEffect(() => {
     if (!qrExpiry || !isQrDialogOpen) return;
     const interval = setInterval(() => {
       const secondsLeft = Math.floor((qrExpiry.getTime() - Date.now()) / 1000);
       if (secondsLeft <= 0) {
         setTimeLeft(0);
-        setIsQrDialogOpen(false); // auto-close when expired
+        setIsQrDialogOpen(false);
         clearInterval(interval);
       } else {
         setTimeLeft(secondsLeft);
       }
     }, 1000);
-
     return () => clearInterval(interval);
   }, [qrExpiry, isQrDialogOpen]);
 
   if (!isClient || !clientUser) return <CheckAuth />;
 
-  const formatTxDate = (tx: Transaction) => {
+  const formatTxDate = (tx: Partial<Transaction>) => {
     let date: Date | null = null;
     if (tx.purchasedDate) date = new Date(tx.purchasedDate);
     else if (tx._id)
@@ -159,7 +225,6 @@ export default function DashboardPage({ params }: { params: { id: string } }) {
       : "No date";
   };
 
-  // Generate QR token
   const handleGenerateQr = async () => {
     if (!clientUser?._id) return;
     try {
@@ -178,11 +243,9 @@ export default function DashboardPage({ params }: { params: { id: string } }) {
       const data = await res.json();
       setQrToken(data.token);
 
-      // Set expiry 5 minutes from now
       const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
       setQrExpiry(expiresAt);
       setTimeLeft(5 * 60);
-
       setIsQrDialogOpen(true);
     } catch (err) {
       console.error(err);
@@ -194,6 +257,7 @@ export default function DashboardPage({ params }: { params: { id: string } }) {
     <div className="w-full h-[80vh] mt-[8%] px-6 antialiased grid grid-rows-[0.2fr_0.01fr_0.9fr]">
       {/* Header */}
       <div className="w-full grid grid-cols-[0.5fr_1.5fr_0.5fr]">
+        {/* Simulate Purchase & Delete */}
         <div className="flex pl-3 flex-col items-center justify-center">
           <Button
             variant="outline"
@@ -202,7 +266,7 @@ export default function DashboardPage({ params }: { params: { id: string } }) {
               setIsSimulating(true);
               try {
                 const newTx = await simulatePurchase(clientUser._id);
-                if (newTx) setTransactions((prev) => [...prev, newTx]);
+                if (newTx) setTransactions((prev) => [newTx, ...prev]);
               } finally {
                 setIsSimulating(false);
               }
@@ -227,6 +291,7 @@ export default function DashboardPage({ params }: { params: { id: string } }) {
                 const data = await res.json();
                 if (res.ok) {
                   setTransactions([]);
+                  setResults([]);
                   alert(`Deleted ${data.deletedCount} transaction(s)`);
                 } else {
                   alert(data.error || "Failed to delete transactions");
@@ -241,28 +306,31 @@ export default function DashboardPage({ params }: { params: { id: string } }) {
           </Button>
         </div>
 
+        {/* User Info */}
         <div className="pl-3 pr-3 pt-3 flex flex-col">
           <div className="text-2xl font-bold mb-1">
             Username: @{clientUser?.username || "Loading..."}
           </div>
           <div className="mt-1 mb-1">
             Gender:{" "}
-            {clientUser.gender &&
-              clientUser.gender.charAt(0).toUpperCase() +
-                clientUser.gender.slice(1)}
+            {clientUser?.gender
+              ? clientUser.gender.charAt(0).toUpperCase() +
+                clientUser.gender.slice(1)
+              : "N/A"}
           </div>
           <div className="mt-1 mb-1">
             Birthdate:{" "}
-            {new Date(clientUser.dob ?? "").toLocaleDateString("en-US", {
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-            })}
+            {clientUser?.dob
+              ? new Date(clientUser.dob).toLocaleDateString("en-US", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })
+              : "N/A"}
           </div>
-
           <div className="mt-1 mb-1">
             Age:{" "}
-            {clientUser.dob
+            {clientUser?.dob
               ? Math.floor(
                   (new Date().getTime() - new Date(clientUser.dob).getTime()) /
                     3.15576e10
@@ -271,6 +339,7 @@ export default function DashboardPage({ params }: { params: { id: string } }) {
           </div>
         </div>
 
+        {/* QR Code */}
         <div className="flex flex-col items-center justify-center space-y-2">
           <Button
             variant="outline"
@@ -289,12 +358,15 @@ export default function DashboardPage({ params }: { params: { id: string } }) {
                 className="relative p-6 rounded-xl bg-white flex flex-col items-center justify-center w-[25%]"
                 onClick={(e) => e.stopPropagation()}
               >
-                {/* Close Icon on top-right */}
                 <button
                   className="absolute top-6 right-6 hover:opacity-80"
                   onClick={() => setIsQrDialogOpen(false)}
                 >
-                  <img src="/close_icon.png" alt="Close" className="w-6 h-6 cursor-pointer" />
+                  <img
+                    src="/close_icon.png"
+                    alt="Close"
+                    className="w-6 h-6 cursor-pointer"
+                  />
                 </button>
 
                 <h2 className="text-xl font-bold mb-4 text-black">
@@ -302,7 +374,6 @@ export default function DashboardPage({ params }: { params: { id: string } }) {
                 </h2>
                 <QRCodeCanvas value={qrToken} size={180} ref={qrCanvasRef} />
 
-                {/* Timer */}
                 <div className="mt-2 text-sm text-red-600 font-bold">
                   Expires in:{" "}
                   {Math.floor(timeLeft / 60)
@@ -311,7 +382,6 @@ export default function DashboardPage({ params }: { params: { id: string } }) {
                   :{(timeLeft % 60).toString().padStart(2, "0")}
                 </div>
 
-                {/* Bottom-left custom icon buttons */}
                 <div className="flex flex-row mt-4 justify-center w-full space-x-4">
                   <button onClick={handleGenerateQr}>
                     <img
@@ -320,14 +390,15 @@ export default function DashboardPage({ params }: { params: { id: string } }) {
                       className="w-7 h-7 hover:opacity-80 cursor-pointer"
                     />
                   </button>
-
                   <button
                     onClick={() => {
                       if (!qrCanvasRef.current) return;
                       const url = qrCanvasRef.current.toDataURL("image/png");
                       const link = document.createElement("a");
                       link.href = url;
-                      link.download = `${clientUser.username?.toUpperCase()}-QR.png`;
+                      link.download = `${
+                        clientUser?.username?.toUpperCase() || "USER"
+                      }-QR.png`;
                       document.body.appendChild(link);
                       link.click();
                       document.body.removeChild(link);
@@ -371,7 +442,7 @@ export default function DashboardPage({ params }: { params: { id: string } }) {
               {formatTxDate({
                 purchasedDate: item.purchasedDate,
                 _id: item.txId,
-              } as Transaction)}
+              })}
             </div>
           </div>
         ))}
@@ -386,7 +457,6 @@ export default function DashboardPage({ params }: { params: { id: string } }) {
         >
           Prev
         </Button>
-
         <Button
           onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
           disabled={currentPage === totalPages}
