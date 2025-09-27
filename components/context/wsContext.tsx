@@ -1,5 +1,5 @@
 "use client";
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 
 interface WSContextValue {
   ws?: WebSocket;
@@ -8,27 +8,51 @@ interface WSContextValue {
 const WSContext = createContext<WSContextValue>({});
 
 export const WSProvider = ({ children }: { children: React.ReactNode }) => {
+  const wsRef = useRef<WebSocket | null>(null);
   const [ws, setWs] = useState<WebSocket>();
 
   useEffect(() => {
-    if (ws) return; // already initialized
+    let reconnectTimeout: NodeJS.Timeout;
 
-    const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-    const socket = new WebSocket(
-      `${protocol}://${window.location.hostname}:8080`
-    );
+    const connect = () => {
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) return;
 
-    socket.onopen = () => console.log("WS connected");
-    socket.onclose = () => console.log("WS closed");
-    socket.onerror = (err) => console.error("WS error:", err);
+      const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+      const socket = new WebSocket(
+        `${protocol}://${window.location.hostname}:8080`
+      );
 
-    setWs(socket);
+      wsRef.current = socket;
+      setWs(socket);
 
-    // optional: cleanup on unmount
-    // return () => socket.close();
-  }, [ws]);
+      socket.onopen = () => console.log("WS connected");
+      socket.onclose = () => {
+        console.log("WS closed – reconnecting in 3s");
+        reconnectTimeout = setTimeout(() => {
+          wsRef.current = null;
+          setWs(undefined);
+          connect(); // reconnect automatically
+        }, 3000);
+      };
+      socket.onerror = (err) => {
+        console.error("WS error:", err);
+        socket.close();
+      };
+    };
+
+    connect();
+
+    return () => {
+      clearTimeout(reconnectTimeout);
+      wsRef.current?.close();
+    };
+  }, []);
 
   return <WSContext.Provider value={{ ws }}>{children}</WSContext.Provider>;
 };
 
-export const useWS = () => useContext(WSContext);
+// ✅ Returns undefined if WebSocket not ready yet
+export const useWS = (): WebSocket | undefined => {
+  const context = useContext(WSContext);
+  return context.ws;
+};

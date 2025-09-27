@@ -2,7 +2,7 @@
 
 import { useAuth } from "@/components/context/AuthContext";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useContext } from "react";
 import CheckAuth from "@/components/checkAuth";
 import { Button } from "@/components/ui/button";
 import { simulatePurchase } from "@/app/utils/simulateTransaction";
@@ -12,6 +12,8 @@ import {
   Transaction,
 } from "@/app/utils/fetchTransaction";
 import { QRCodeCanvas } from "qrcode.react";
+import { useWS } from "@/components/context/wsContext";
+import { WSProvider } from "@/components/context/wsContext";
 
 // Helper to shuffle an array
 const shuffleArray = (arr: string[]) => {
@@ -33,12 +35,13 @@ const generateUsernameFromPhone = (phone: string) => {
 export default function DashboardPage({ params }: { params: { id: string } }) {
   const { user } = useAuth();
   const router = useRouter();
+  const ws = useWS(); // safe: may be undefined
 
   const [isClient, setIsClient] = useState(false);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [results, setResults] = useState<Result[]>([]);
   const [qrToken, setQrToken] = useState<string | null>(null);
-  const qrTokenRef = useRef<string | null>(null); // keep latest QR token
+  const qrTokenRef = useRef<string | null>(null);
   const [isQrDialogOpen, setIsQrDialogOpen] = useState(false);
   const [isSimulating, setIsSimulating] = useState(false);
 
@@ -55,7 +58,7 @@ export default function DashboardPage({ params }: { params: { id: string } }) {
   });
 
   const [qrExpiry, setQrExpiry] = useState<Date | null>(null);
-  const [timeLeft, setTimeLeft] = useState<number>(0); // in seconds
+  const [timeLeft, setTimeLeft] = useState<number>(0);
   const qrCanvasRef = useRef<HTMLCanvasElement>(null);
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -99,19 +102,14 @@ export default function DashboardPage({ params }: { params: { id: string } }) {
     fetchData();
   }, [clientUser?._id]);
 
-  // WebSocket for real-time updates
+  // WebSocket real-time updates
   useEffect(() => {
-    if (!clientUser?._id) return;
+    if (!ws || !clientUser?._id) return;
 
-    const ws = new WebSocket("ws://localhost:8080");
-
-    ws.onopen = () => console.log("Connected to WebSocket server");
-
-    ws.onmessage = (event) => {
+    const handleMessage = (event: MessageEvent) => {
       try {
         const data = JSON.parse(event.data);
 
-        // ✅ QR scanned
         if (
           data.type === "qr_scanned" &&
           String(data.userId) === String(clientUser._id) &&
@@ -120,7 +118,6 @@ export default function DashboardPage({ params }: { params: { id: string } }) {
           setIsQrDialogOpen(false);
         }
 
-        // New transaction
         if (data.type === "new_transaction") {
           const transaction: Transaction = data.transaction;
           if (transaction.user_id === clientUser._id) {
@@ -128,7 +125,6 @@ export default function DashboardPage({ params }: { params: { id: string } }) {
           }
         }
 
-        // New result
         if (data.type === "new_result") {
           const result: Result = data.result;
           if (result.user_id === clientUser._id) {
@@ -145,11 +141,9 @@ export default function DashboardPage({ params }: { params: { id: string } }) {
       }
     };
 
-    ws.onclose = () => console.log("WebSocket closed");
-    ws.onerror = (err) => console.error("WebSocket error:", err);
-
-    return () => ws.close();
-  }, [clientUser?._id]);
+    ws.addEventListener("message", handleMessage);
+    return () => ws.removeEventListener("message", handleMessage);
+  }, [ws, clientUser?._id]);
 
   // Redirect logic
   useEffect(() => {

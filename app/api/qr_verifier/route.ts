@@ -2,7 +2,7 @@ import dbConnect from "@/lib/dbConnect";
 import QrToken from "@/models/qrToken";
 import User from "@/models/User";
 import { NextResponse } from "next/server";
-import wss, { broadcast } from "@/server/wsServer"; // import your WS server
+import { broadcast } from "@/server/wsServer";
 
 type UserType = {
   _id: string;
@@ -26,8 +26,9 @@ export async function POST(req: Request) {
       if (!user)
         return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-      const token = Math.random().toString(36).substring(2, 12); // 10-char random
-      const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+      // ✅ Prefix the random string with "LOGIN-"
+      const token = "LOGIN-" + Math.random().toString(36).substring(2, 12); // e.g. LOGIN-abc123defg
+      const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5-minute expiry
 
       await QrToken.create({
         token,
@@ -43,6 +44,14 @@ export async function POST(req: Request) {
     // CASE 2: Verify QR code
     // --------------------------
     if (body.qrCode) {
+      // ✅ Optional safety: only accept codes beginning with "LOGIN-"
+      if (!body.qrCode.startsWith("LOGIN-")) {
+        return NextResponse.json(
+          { error: "Invalid QR code type" },
+          { status: 401 }
+        );
+      }
+
       const qrRecord = await QrToken.findOne({ token: body.qrCode });
       if (!qrRecord)
         return NextResponse.json({ error: "Invalid QR code" }, { status: 401 });
@@ -64,9 +73,7 @@ export async function POST(req: Request) {
       qrRecord.used = true;
       await qrRecord.save();
 
-      // --------------------------
       // Broadcast to WS clients
-      // --------------------------
       broadcast({
         type: "qr_scanned",
         userId: qrRecord.userId.toString(),
