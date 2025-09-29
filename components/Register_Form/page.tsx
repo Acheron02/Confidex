@@ -36,13 +36,13 @@ export function Register({ onSwitchToLogin, onSwitchToAdmin, onClose }: Register
 
   const [status, setStatus] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [otp, setOtp] = useState(""); // ✅ store OTP generated
-  const [tempForm, setTempForm] = useState<typeof form | null>(null); // hold form until verified
+  const [otp, setOtp] = useState(""); 
+  const [tempForm, setTempForm] = useState<typeof form | null>(null); 
 
   const handleResendOTP = () => {
     const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
     setOtp(newOtp); // 🔄 replace the old OTP
-    console.log("Resent OTP:", newOtp);
+    alert(`Resent OTP: ${newOtp}`);
   };
 
   // 🔹 validation helper
@@ -91,7 +91,7 @@ export function Register({ onSwitchToLogin, onSwitchToAdmin, onClose }: Register
     const generated = Math.floor(100000 + Math.random() * 900000).toString();
     setOtp(generated);
     setTempForm(form);
-    console.log("Generated OTP:", generated);
+    alert(`Generated OTP: ${generated}`);
     setOpen(true);
 
   };
@@ -117,16 +117,13 @@ export function Register({ onSwitchToLogin, onSwitchToAdmin, onClose }: Register
 
       setStatus("Registered!");
       setOpen(false);
-
-      // ✅ store the correct user object
       login(data.user);
 
       onClose();
 
-      // ✅ redirect with real id
-      router.push(`/users/${data.user._id}`);
+      router.push(`/pages/users/${data.user._id}`);
     } else {
-      console.log("❌ Incorrect OTP");
+      alert("❌ Incorrect OTP");
       setStatus("Incorrect OTP, try again.");
     }
   };

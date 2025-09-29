@@ -36,7 +36,7 @@ export function AdminLogin({ onSwitchToLogin, onClose }: LoginProps) {
   const handleResendOTP = () => {
     const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
     setOtp(newOtp);
-    console.log("Resent OTP:", newOtp);
+    alert(`Resent OTP: ${newOtp}`);
   };
 
   /** OTP Verification */
@@ -58,9 +58,9 @@ export function AdminLogin({ onSwitchToLogin, onClose }: LoginProps) {
       onClose();
 
       // Redirect to dashboard
-      router.push(`/admin/dashboard`);
+      router.push(`/pages/admin/dashboard`);
     } else {
-      console.log("❌ Incorrect OTP");
+      alert("❌ Incorrect OTP");
       setOtpStatus("Incorrect OTP, try again.");
     }
   };
@@ -107,7 +107,7 @@ export function AdminLogin({ onSwitchToLogin, onClose }: LoginProps) {
           100000 + Math.random() * 900000
         ).toString();
         setOtp(generatedOtp);
-        console.log("Generated OTP:", generatedOtp);
+        alert(`Generated OTP: ${generatedOtp}`);
 
         setOpen(true);
       } else {

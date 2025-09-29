@@ -13,7 +13,6 @@ import {
 } from "@/app/utils/fetchTransaction";
 import { QRCodeCanvas } from "qrcode.react";
 import { useWS } from "@/components/context/wsContext";
-import { WSProvider } from "@/components/context/wsContext";
 
 // Helper to shuffle an array
 const shuffleArray = (arr: string[]) => {
@@ -149,11 +148,11 @@ export default function DashboardPage({ params }: { params: { id: string } }) {
   useEffect(() => {
     if (!isClient || !clientUser) return;
     if (clientUser.role === "admin") {
-      router.replace("/admin/dashboard");
+      router.replace("/pages/admin/dashboard");
       return;
     }
     if (clientUser._id !== params.id) {
-      router.replace(`/users/${clientUser._id}`);
+      router.replace(`/pages/users/${clientUser._id}`);
       return;
     }
   }, [isClient, clientUser, params.id, router]);
@@ -171,6 +170,7 @@ export default function DashboardPage({ params }: { params: { id: string } }) {
         purchasedDate: tx.purchasedDate,
         txId: tx._id,
         result: foundResult?.result || "Pending",
+        resultImageUrl: "https://via.placeholder.com/80",
       };
     })
   );
@@ -260,7 +260,6 @@ export default function DashboardPage({ params }: { params: { id: string } }) {
               setIsSimulating(true);
               try {
                 const newTx = await simulatePurchase(clientUser._id);
-                if (newTx) setTransactions((prev) => [newTx, ...prev]);
               } finally {
                 setIsSimulating(false);
               }
@@ -416,13 +415,21 @@ export default function DashboardPage({ params }: { params: { id: string } }) {
       </div>
 
       {/* Dashboard Body */}
-      <div className="w-full font-bold text-center grid grid-cols-5 overflow-y-scroll scrollbar-hidden">
-        <div>No.</div>
-        <div>Product Name</div>
-        <div>Product ID</div>
-        <div>Result</div>
-        <div>Purchased Date</div>
+      <div className="w-full font-bold text-center grid grid-cols-7 overflow-y-scroll scrollbar-hidden">
+        {/* Header row */}
+        <div className="contents border-b-2 pb-5">
+          <div>No.</div>
+          <div>Product Name</div>
+          <div>Product ID</div>
+          <div>Result</div>
+          <div>Result Image</div>
+          <div>Receipt</div>
+          <div>Purchased Date</div>
+        </div>
 
+        <div className="col-span-7 h-6" aria-hidden="true" />
+
+        {/* Data rows */}
         {currentItems.map((item, index) => (
           <div
             key={`${item.txId}-${item.itemIndex}-${startIndex + index}`}
@@ -432,6 +439,31 @@ export default function DashboardPage({ params }: { params: { id: string } }) {
             <div>{item.name}</div>
             <div>{item.productID}</div>
             <div>{item.result}</div>
+            <div className="flex justify-center">
+              {item.resultImageUrl ? (
+                <img
+                  src={item.resultImageUrl}
+                  alt="Result"
+                  className="w-12 h-12 object-cover rounded cursor-pointer"
+                  onClick={() => window.open(item.resultImageUrl, "_blank")}
+                />
+              ) : (
+                <span className="text-gray-400">No image</span>
+              )}
+            </div>
+
+            <div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  alert(`Viewing receipt for Tx: ${item.txId}`);
+                }}
+              >
+                View
+              </Button>
+            </div>
+
             <div>
               {formatTxDate({
                 purchasedDate: item.purchasedDate,

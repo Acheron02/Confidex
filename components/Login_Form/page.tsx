@@ -47,7 +47,7 @@ export function Login({
   const handleResendOTP = () => {
     const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
     setOtp(newOtp);
-    console.log("Resent OTP:", newOtp); // TODO: send via SMS service
+    alert(`Resent OTP: ${newOtp}`);
   };
 
   const onSubmit = async (e: React.FormEvent) => {
@@ -71,7 +71,7 @@ export function Login({
     const generated = Math.floor(100000 + Math.random() * 900000).toString();
     setOtp(generated);
     setTempPhone(form.phoneNumber);
-    console.log("Generated OTP (Login):", generated);
+    alert(`Generated OTP (Login): ${generated}`);
 
     // Open OTP dialog
     setOpen(true);
@@ -98,7 +98,7 @@ export function Login({
       onClose();
 
       // ✅ redirect to user profile/dashboard
-      router.push(`/users/${data.user._id}`);
+      router.push(`/pages/users/${data.user._id}`);
     } else {
       setStatus("Incorrect OTP, try again.");
     }

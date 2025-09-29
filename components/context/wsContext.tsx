@@ -26,17 +26,18 @@ export const WSProvider = ({ children }: { children: React.ReactNode }) => {
       setWs(socket);
 
       socket.onopen = () => console.log("WS connected");
-      socket.onclose = () => {
-        console.log("WS closed – reconnecting in 3s");
+      socket.onclose = (event) => {
+        console.log(
+          `WS closed (code: ${event.code}, reason: ${event.reason}) – reconnecting in 3s`
+        );
         reconnectTimeout = setTimeout(() => {
           wsRef.current = null;
           setWs(undefined);
-          connect(); // reconnect automatically
+          connect();
         }, 3000);
       };
-      socket.onerror = (err) => {
-        console.error("WS error:", err);
-        socket.close();
+      socket.onerror = (event) => {
+        console.error("WS error (likely cannot connect):", event);
       };
     };
 

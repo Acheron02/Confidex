@@ -27,7 +27,7 @@ export default function Navbar() {
     setMounted(true);
   }, []);
 
-  if (pathname.startsWith("/admin/dashboard")) {
+  if (pathname.startsWith("/pages/admin/dashboard")) {
     return null;
   }
 
@@ -76,15 +76,15 @@ export default function Navbar() {
         {[
           { href: "/", label: "Home" },
           {
-            href: "/analytics",
+            href: "/pages/analytics",
             label: "Analytics",
             auth: true,
             roleNotAdmin: true,
           },
-          { href: "/about", label: "About" },
-          { href: "/contact", label: "Contact" },
+          { href: "/pages/about", label: "About" },
+          { href: "/pages/contact", label: "Contact" },
         ].map((link) => {
-          if (link.href === "/analytics" && (!user || user.role === "admin"))
+          if (link.href === "/pages/analytics" && (!user || user.role === "admin"))
             return null;
 
           const isActive = pathname === link.href;
@@ -120,7 +120,7 @@ export default function Navbar() {
             Sign Up
           </button>
         ) : user.role === "admin" ? (
-          pathname === "/admin/dashboard" ? (
+          pathname === "/pages/admin/dashboard" ? (
             <button
               onClick={logout}
               className="bg-[#F95738] text-white px-4 py-2 rounded-[15px] hover:cursor-pointer
@@ -130,7 +130,7 @@ export default function Navbar() {
             </button>
           ) : (
             <Link
-              href="/admin/dashboard"
+              href="/pages/admin/dashboard"
               className="bg-[#0D3B66] text-[#F4D35E] px-4 py-2 rounded-[15px] hover:cursor-pointer
             dark:bg-[#F95738] dark:text-[#FAF0CA]"
             >
@@ -138,7 +138,7 @@ export default function Navbar() {
             </Link>
           )
         ) : user._id ? (
-          pathname === `/users/${user._id}` ? (
+          pathname === `/pages/users/${user._id}` ? (
             <button
               onClick={logout}
               className="bg-[#F95738] text-white px-4 py-2 rounded-[15px] hover:cursor-pointer
@@ -148,7 +148,7 @@ export default function Navbar() {
             </button>
           ) : (
             <Link
-              href={`/users/${user._id}`}
+              href={`/pages/users/${user._id}`}
               className="bg-[#0D3B66] text-[#F4D35E] px-4 py-2 rounded-[15px] hover:cursor-pointer
               dark:bg-[#F95738] dark:text-[#FAF0CA]"
             >
