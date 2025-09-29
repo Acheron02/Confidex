@@ -2,7 +2,7 @@
 
 import { useAuth } from "@/components/context/AuthContext";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useRef, useContext } from "react";
+import { useEffect, useState, useRef } from "react";
 import CheckAuth from "@/components/checkAuth";
 import { Button } from "@/components/ui/button";
 import { simulatePurchase } from "@/app/utils/simulateTransaction";
@@ -34,7 +34,7 @@ const generateUsernameFromPhone = (phone: string) => {
 export default function DashboardPage({ params }: { params: { id: string } }) {
   const { user } = useAuth();
   const router = useRouter();
-  const ws = useWS(); // safe: may be undefined
+  const { ws, isReady } = useWS(); // <-- updated to destructure isReady
 
   const [isClient, setIsClient] = useState(false);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -102,29 +102,30 @@ export default function DashboardPage({ params }: { params: { id: string } }) {
   }, [clientUser?._id]);
 
   // WebSocket real-time updates
+  // Only attach listeners when socket exists AND isReady is true
   useEffect(() => {
-    if (!ws || !clientUser?._id) return;
+    if (!ws || !isReady || !clientUser?._id) return;
 
     const handleMessage = (event: MessageEvent) => {
       try {
         const data = JSON.parse(event.data);
 
         if (
-          data.type === "qr_scanned" &&
+          data?.type === "qr_scanned" &&
           String(data.userId) === String(clientUser._id) &&
           data.token === qrTokenRef.current
         ) {
           setIsQrDialogOpen(false);
         }
 
-        if (data.type === "new_transaction") {
+        if (data?.type === "new_transaction") {
           const transaction: Transaction = data.transaction;
           if (transaction.user_id === clientUser._id) {
             setTransactions((prev) => [transaction, ...prev]);
           }
         }
 
-        if (data.type === "new_result") {
+        if (data?.type === "new_result") {
           const result: Result = data.result;
           if (result.user_id === clientUser._id) {
             setResults((prev) => {
@@ -142,7 +143,7 @@ export default function DashboardPage({ params }: { params: { id: string } }) {
 
     ws.addEventListener("message", handleMessage);
     return () => ws.removeEventListener("message", handleMessage);
-  }, [ws, clientUser?._id]);
+  }, [ws, isReady, clientUser?._id]);
 
   // Redirect logic
   useEffect(() => {
@@ -259,7 +260,7 @@ export default function DashboardPage({ params }: { params: { id: string } }) {
               if (isSimulating) return;
               setIsSimulating(true);
               try {
-                const newTx = await simulatePurchase(clientUser._id);
+                await simulatePurchase(clientUser._id);
               } finally {
                 setIsSimulating(false);
               }
