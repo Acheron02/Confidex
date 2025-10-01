@@ -1,7 +1,9 @@
+// app/api/update_result/route.ts
 import { NextResponse } from "next/server";
+import mongoose from "mongoose";
 import dbConnect from "@/lib/dbConnect";
 import Result from "@/models/results";
-import { broadcast } from "@/server/wsServer"; // Import WebSocket broadcast helper
+import { broadcast } from "@/server/wsServer";
 
 // ✅ Add a new test result
 export async function POST(req: Request) {
@@ -9,19 +11,26 @@ export async function POST(req: Request) {
     await dbConnect();
     const data = await req.json();
 
-    const { user_id, productID, result } = data;
+    const { user_id, productID, result, result_image } = data;
 
     if (!user_id || !productID || !result) {
-      return NextResponse.json({
-        success: false,
-        error: "user_id, productID, and result are required",
-      });
+      return NextResponse.json(
+        {
+          success: false,
+          error: "user_id, productID, and result are required",
+        },
+        { status: 400 }
+      );
     }
 
+    // ✅ Ensure ObjectId type
+    const userObjectId = new mongoose.Types.ObjectId(user_id);
+
     const newResult = await Result.create({
-      user_id,
+      user_id: userObjectId,
       productID,
       result,
+      result_image: result_image || "", // fallback to empty string
       testedDate: new Date(),
     });
 
@@ -30,10 +39,13 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true, result: newResult });
   } catch (error) {
-    return NextResponse.json({
-      success: false,
-      error: (error as Error).message,
-    });
+    return NextResponse.json(
+      {
+        success: false,
+        error: (error as Error).message,
+      },
+      { status: 500 }
+    );
   }
 }
 
@@ -48,8 +60,18 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Missing userId" }, { status: 400 });
     }
 
-    const results = await Result.find({ user_id: userId }).lean();
-    return NextResponse.json(results, { status: 200 });
+    // ✅ Ensure ObjectId type
+    const userObjectId = new mongoose.Types.ObjectId(userId);
+
+    const results = await Result.find({ user_id: userObjectId }).lean();
+
+    // Guarantee result_image field always exists
+    const normalized = results.map((r) => ({
+      ...r,
+      result_image: r.result_image || "",
+    }));
+
+    return NextResponse.json(normalized, { status: 200 });
   } catch (error) {
     return NextResponse.json(
       { error: (error as Error).message },

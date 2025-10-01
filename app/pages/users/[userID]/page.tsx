@@ -34,7 +34,7 @@ const generateUsernameFromPhone = (phone: string) => {
 export default function DashboardPage({ params }: { params: { id: string } }) {
   const { user } = useAuth();
   const router = useRouter();
-  const { ws, isReady } = useWS(); // <-- updated to destructure isReady
+  const { ws, isReady } = useWS();
 
   const [isClient, setIsClient] = useState(false);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -62,6 +62,11 @@ export default function DashboardPage({ params }: { params: { id: string } }) {
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+
+  // --- NEW: image dialog state ---
+  const [isImageDialogOpen, setIsImageDialogOpen] = useState(false);
+  const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
+  const [imageLoading, setImageLoading] = useState(false);
 
   // Update ref whenever qrToken changes
   useEffect(() => {
@@ -102,7 +107,6 @@ export default function DashboardPage({ params }: { params: { id: string } }) {
   }, [clientUser?._id]);
 
   // WebSocket real-time updates
-  // Only attach listeners when socket exists AND isReady is true
   useEffect(() => {
     if (!ws || !isReady || !clientUser?._id) return;
 
@@ -110,6 +114,7 @@ export default function DashboardPage({ params }: { params: { id: string } }) {
       try {
         const data = JSON.parse(event.data);
 
+        // QR scanned
         if (
           data?.type === "qr_scanned" &&
           String(data.userId) === String(clientUser._id) &&
@@ -118,6 +123,7 @@ export default function DashboardPage({ params }: { params: { id: string } }) {
           setIsQrDialogOpen(false);
         }
 
+        // New transaction
         if (data?.type === "new_transaction") {
           const transaction: Transaction = data.transaction;
           if (transaction.user_id === clientUser._id) {
@@ -125,14 +131,36 @@ export default function DashboardPage({ params }: { params: { id: string } }) {
           }
         }
 
+        // New result (with image) - tolerant to different image field names
         if (data?.type === "new_result") {
-          const result: Result = data.result;
+          const result = data.result;
           if (result.user_id === clientUser._id) {
             setResults((prev) => {
-              const exists = prev.some(
-                (r) => r._id === result._id || r.productID === result.productID
-              );
-              return exists ? prev : [result, ...prev];
+              const exists = prev.some((r) => r.productID === result.productID);
+              if (exists) {
+                return prev.map((r) =>
+                  r.productID === result.productID
+                    ? {
+                        ...r,
+                        result: result.result ?? r.result,
+                        result_image: result.result_image || r.result_image,
+                        createdAt: result.createdAt || r.createdAt,
+                      }
+                    : r
+                );
+              } else {
+                return [
+                  {
+                    _id: result._id ?? Date.now().toString(),
+                    user_id: result.user_id,
+                    productID: result.productID,
+                    result: result.result ?? "Analyzed",
+                    result_image: result.result_image || "",
+                    createdAt: result.createdAt || new Date().toISOString(),
+                  },
+                  ...prev,
+                ];
+              }
             });
           }
         }
@@ -171,7 +199,8 @@ export default function DashboardPage({ params }: { params: { id: string } }) {
         purchasedDate: tx.purchasedDate,
         txId: tx._id,
         result: foundResult?.result || "Pending",
-        resultImageUrl: "https://via.placeholder.com/80",
+        result_image_url:
+          foundResult?.result_image || "https://via.placeholder.com/80",
       };
     })
   );
@@ -245,6 +274,54 @@ export default function DashboardPage({ params }: { params: { id: string } }) {
     } catch (err) {
       console.error(err);
       alert("Failed to generate QR code. Please try again.");
+    }
+  };
+
+  // --- NEW: fetch image on demand and open dialog ---
+  const fetchAndOpenImage = async (productID: string) => {
+    if (!clientUser?._id) return;
+
+    setImageLoading(true);
+    try {
+      // Try to find in current results cache first
+      let found = results.find(
+        (r) => r.user_id === clientUser._id && r.productID === productID
+      );
+
+      // If not found or no image info, re-fetch user's results from backend
+      if (!found || !found.result_image) {
+        const refreshed = await fetchUserResults(clientUser._id);
+        setResults(refreshed || []);
+        found = refreshed.find(
+          (r) => r.user_id === clientUser._id && r.productID === productID
+        );
+      }
+
+      // tolerate multiple keys
+      const img =
+        found?.result_image ||
+        // @ts-ignore
+        (found &&
+          ((found as any).resultImageUrl || (found as any).result_image_url)) ||
+        null;
+
+      if (!img) {
+        alert("No result image found for this transaction.");
+        return;
+      }
+
+      const raspiBaseUrl = "http://192.168.8.120:5000/images/";
+      const fullUrl = img.startsWith("http") ? img : `${raspiBaseUrl}${img}`;
+
+      // Open modal with image
+      console.log("Opening image modal:", fullUrl);
+      setSelectedImageUrl(fullUrl);
+      setIsImageDialogOpen(true);
+    } catch (err) {
+      console.error("Failed to fetch image:", err);
+      alert("Failed to fetch image. See console for details.");
+    } finally {
+      setImageLoading(false);
     }
   };
 
@@ -440,17 +517,17 @@ export default function DashboardPage({ params }: { params: { id: string } }) {
             <div>{item.name}</div>
             <div>{item.productID}</div>
             <div>{item.result}</div>
+
+            {/* RESULT IMAGE COLUMN: show "View Result" button that fetches & opens modal */}
             <div className="flex justify-center">
-              {item.resultImageUrl ? (
-                <img
-                  src={item.resultImageUrl}
-                  alt="Result"
-                  className="w-12 h-12 object-cover rounded cursor-pointer"
-                  onClick={() => window.open(item.resultImageUrl, "_blank")}
-                />
-              ) : (
-                <span className="text-gray-400">No image</span>
-              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => fetchAndOpenImage(item.productID)}
+                disabled={imageLoading}
+              >
+                {imageLoading ? "Loading..." : "View Result"}
+              </Button>
             </div>
 
             <div>
@@ -492,6 +569,42 @@ export default function DashboardPage({ params }: { params: { id: string } }) {
           Next
         </Button>
       </div>
+
+      {/* IMAGE DIALOG */}
+      {isImageDialogOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          onClick={() => {
+            setIsImageDialogOpen(false);
+            setSelectedImageUrl(null);
+          }}
+        >
+          <div
+            className="relative bg-white p-6 rounded-xl max-w-[90%] max-h-[90%] flex flex-col items-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className="absolute top-4 right-4"
+              onClick={() => {
+                setIsImageDialogOpen(false);
+                setSelectedImageUrl(null);
+              }}
+            >
+              <img src="/close_icon.png" alt="Close" className="w-6 h-6" />
+            </button>
+
+            {selectedImageUrl ? (
+              <img
+                src={selectedImageUrl}
+                alt="Result"
+                className="max-w-[80vw] max-h-[70vh] object-contain rounded"
+              />
+            ) : (
+              <div className="p-8 text-gray-700">No image available</div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
